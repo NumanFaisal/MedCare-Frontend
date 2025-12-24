@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from "sonner";
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 import AuthLayout from './../../components/layouts/AuthLayout.tsx';
-import { signUpSchema, type SignUpFormValues } from '@/schemas/auth'; 
+import { signUpSchema, type SignUpFormValues } from '@/schemas/auth';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +24,7 @@ import {
 
 export default function SignUp() {
   const [activeTab, setActiveTab] = useState("USER");
+  const navigate = useNavigate();
 
   const form = useForm<SignUpFormValues>({
     resolver: zodResolver(signUpSchema),
@@ -42,7 +45,7 @@ export default function SignUp() {
   const onTabChange = (value: string) => {
     setActiveTab(value);
     form.setValue("role", value as "USER" | "MEDICAL" | "DOCTOR");
-    form.clearErrors(); 
+    form.clearErrors();
     // Optional: Reset role-specific fields when switching tabs
     form.setValue("licenseNumber", "");
     form.setValue("specialization", "");
@@ -50,10 +53,25 @@ export default function SignUp() {
     form.setValue("address", "");
   };
 
-  const onSubmit = (data: SignUpFormValues) => {
+  const onSubmit = async (data: SignUpFormValues) => {
     console.log("Submitting to Backend:", data);
-    toast("Account created successfully!");
-    // Logic to POST data to your backend...
+    try {
+      const response = await axios.post("http://localhost:4000/api/auth/register", data);
+      console.log("Registration success:", response.data);
+      toast.success("Account created successfully!");
+
+      if (response.data.user.role === "USER") {
+        navigate("/usr");
+      } else if (response.data.user.role === "DOCTOR") {
+        navigate("/doc");
+      } else if (response.data.user.role === "MEDICAL") {
+        navigate("/med");
+      }
+
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      toast.error(error.response?.data?.message || "Registration failed. Please try again.");
+    }
   };
 
   return (
@@ -61,12 +79,12 @@ export default function SignUp() {
       <Card className="border-none shadow-xl w-full">
         <CardContent className="pt-6">
           <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-            
+
             <TabsList className="grid w-full grid-cols-3 mb-6 bg-secondary/5 h-11">
               {["USER", "MEDICAL", "DOCTOR"].map((role) => (
-                <TabsTrigger 
+                <TabsTrigger
                   key={role}
-                  value={role} 
+                  value={role}
                   className="data-[state=active]:bg-primary data-[state=active]:text-white font-medium capitalize"
                 >
                   {role.toLowerCase()}
@@ -76,7 +94,7 @@ export default function SignUp() {
 
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                
+
                 {/* First Name & Last Name Row */}
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
@@ -86,7 +104,7 @@ export default function SignUp() {
                       <FormItem>
                         <FormLabel>First Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="John" {...field} className="focus-visible:ring-primary" />
+                          <Input placeholder="John" {...field} className="rounded-lg border-gray-300 bg-white px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -99,7 +117,7 @@ export default function SignUp() {
                       <FormItem>
                         <FormLabel>Last Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="Doe" {...field} className="focus-visible:ring-primary" />
+                          <Input placeholder="Doe" {...field} className="rounded-lg border-gray-300 bg-white px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -115,7 +133,7 @@ export default function SignUp() {
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="m@example.com" {...field} className="focus-visible:ring-primary" />
+                          <Input type="email" placeholder="m@example.com" {...field} className="rounded-lg border-gray-300 bg-white px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -128,7 +146,7 @@ export default function SignUp() {
                       <FormItem>
                         <FormLabel>Phone Number</FormLabel>
                         <FormControl>
-                          <Input type="tel" placeholder="1234567890" {...field} className="focus-visible:ring-primary" />
+                          <Input type="tel" placeholder="1234567890" {...field} className="rounded-lg border-gray-300 bg-white px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -140,7 +158,7 @@ export default function SignUp() {
                 {activeTab === "DOCTOR" && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300 p-4 bg-blue-50/50 rounded-lg border border-blue-100">
                     <h3 className="text-sm font-semibold text-primary">Doctor Details</h3>
-                    
+
                     <FormField
                       control={form.control}
                       name="specialization"
@@ -149,11 +167,11 @@ export default function SignUp() {
                           <FormLabel>Specialization</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
-                              <SelectTrigger className="bg-white focus:ring-primary">
+                              <SelectTrigger className="w-full rounded-lg border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:ring-offset-0">
                                 <SelectValue placeholder="Select Specialization" />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent>
+                            <SelectContent className="bg-white">
                               <SelectItem value="cardiology">Cardiology</SelectItem>
                               <SelectItem value="dermatology">Dermatology</SelectItem>
                               <SelectItem value="neurology">Neurology</SelectItem>
@@ -164,7 +182,7 @@ export default function SignUp() {
                         </FormItem>
                       )}
                     />
-                    
+
                     <FormField
                       control={form.control}
                       name="licenseNumber"
@@ -172,7 +190,7 @@ export default function SignUp() {
                         <FormItem>
                           <FormLabel>Doctor's License Number</FormLabel>
                           <FormControl>
-                            <Input placeholder="DOC-LIC-12345" {...field} className="bg-white focus-visible:ring-primary" />
+                            <Input placeholder="DOC-LIC-12345" {...field} className="rounded-lg border-gray-300 bg-white px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -184,8 +202,8 @@ export default function SignUp() {
                 {/* --- MEDICAL SECTION --- */}
                 {activeTab === "MEDICAL" && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300 p-4 bg-green-50/50 rounded-lg border border-green-100">
-                     <h3 className="text-sm font-semibold text-third">Pharmacy / Store Details</h3>
-                    
+                    <h3 className="text-sm font-semibold text-third">Pharmacy / Store Details</h3>
+
                     <FormField
                       control={form.control}
                       name="facilityName"
@@ -193,13 +211,13 @@ export default function SignUp() {
                         <FormItem>
                           <FormLabel>Facility Name</FormLabel>
                           <FormControl>
-                            <Input placeholder="City Care Pharmacy" {...field} className="bg-white focus-visible:ring-primary" />
+                            <Input placeholder="City Care Pharmacy" {...field} className="rounded-lg border-gray-300 bg-white px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                    
+
                     <FormField
                       control={form.control}
                       name="address"
@@ -207,7 +225,7 @@ export default function SignUp() {
                         <FormItem>
                           <FormLabel>Address</FormLabel>
                           <FormControl>
-                            <Input placeholder="123 Main St" {...field} className="bg-white focus-visible:ring-primary" />
+                            <Input placeholder="123 Main St" {...field} className="rounded-lg border-gray-300 bg-white px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -221,7 +239,7 @@ export default function SignUp() {
                         <FormItem>
                           <FormLabel>Medical Shop License Number</FormLabel>
                           <FormControl>
-                            <Input placeholder="SHOP-LIC-98765" {...field} className="bg-white focus-visible:ring-primary" />
+                            <Input placeholder="SHOP-LIC-98765" {...field} className="rounded-lg border-gray-300 bg-white px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -237,14 +255,14 @@ export default function SignUp() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input type="password" {...field} className="focus-visible:ring-primary" />
+                        <Input type="password" {...field} className="rounded-lg border-gray-300 bg-white px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-white font-semibold mt-6 h-11 text-base">
+                <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-white font-semibold mt-6 h-11 text-base cursor-pointer">
                   Create Account
                 </Button>
 
@@ -254,9 +272,9 @@ export default function SignUp() {
           </Tabs>
         </CardContent>
         <CardFooter className="flex justify-center border-t p-4 bg-gray-50/50">
-          <p className="text-sm text-muted-foreground">
+          <button onClick={() => navigate("/login")} className="text-sm text-muted-foreground">
             Already have an account? <span className="text-primary hover:underline cursor-pointer font-medium">Sign in</span>
-          </p>
+          </button>
         </CardFooter>
       </Card>
     </AuthLayout>

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import axios from "axios";
 type AccountType = "patient" | "doctor" | "medical";
 
@@ -8,6 +8,8 @@ const Login: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [emailError, setEmailError] = useState("");
+
+  const navigate = useNavigate();
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -23,19 +25,27 @@ const Login: React.FC = () => {
 
   const handleLogin = async () => {
     try {
-      const response = await axios.post("http://localhost:5000/api/login", { email, password });
-      console.log(response.data);
+      const response = await axios.post("http://localhost:4000/api/auth/login", { email, password });
+      if (response.status === 200) {
+        if (role === "patient") {
+          navigate("/usr");
+        } else if (role === "doctor") {
+          navigate("/doc");
+        } else if (role === "medical") {
+          navigate("/med");
+        }
+      }
     } catch (error) {
       console.error(error);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-linear-to-br from-[#E5DEFF] to-[#FDE1D3]">
+    <div className="min-h-screen flex flex-col bg-linear-to-br from-[#243352] to-[#2BB564]">
       {/* Logo */}
       <div className="absolute top-4 left-4 z-10">
         <NavLink to="/" className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-[#9b87f5] rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-[#2BB564] rounded-lg flex items-center justify-center">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="20"
@@ -51,7 +61,7 @@ const Login: React.FC = () => {
               <path d="M3.22 12H9.5l.5-1 2 4 .5-1h6.78" />
             </svg>
           </div>
-          <span className="text-lg font-bold bg-gradient-to-r from-[#9b87f5] to-[#7E69AB] bg-clip-text text-transparent">
+          <span className="text-lg font-bold text-white">
             MedCare
           </span>
         </NavLink>
@@ -117,7 +127,7 @@ const Login: React.FC = () => {
               />
             </div>
 
-            <button className="w-full bg-[#9b87f5] rounded-lg py-2.5 font-medium hover:bg-[#9b87f5]/90 transition-colors"
+            <button className="w-full bg-primary hover:bg-primary/90 text-white rounded-lg py-2.5 font-medium transition-colors cursor-pointer"
               onClick={handleLogin}>
               Sign In
             </button>
