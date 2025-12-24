@@ -1,1 +1,23 @@
 @import "tailwindcss";
+
+/* * Shadcn UI Base Styles 
+ * If your components look "unstyled", you might need these basic resets.
+ */
+@layer base {
+  :root {
+    /* Your Custom Colors */
+    --color-primary: #0A6EFF;
+    --color-secondary: #243352;
+    --color-third: #2bb564;
+
+    /* * Optional: Define foreground colors for Shadcn components 
+     * (Ensures text on top of blue buttons is white)
+     */
+    --color-primary-foreground: #ffffff; 
+    --color-secondary-foreground: #ffffff;
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --radius: 0.5rem;
+  }
+  
+}
