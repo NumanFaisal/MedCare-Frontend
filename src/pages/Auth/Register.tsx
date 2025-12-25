@@ -58,14 +58,16 @@ export default function SignUp() {
     try {
       const response = await axios.post("http://localhost:4000/api/auth/register", data);
       console.log("Registration success:", response.data);
-      toast.success("Account created successfully!");
+      toast("Account created!", {
+        description: "Welcome to MedCare",
+      });
 
       if (response.data.user.role === "USER") {
-        navigate("/usr");
+        navigate("/user");
       } else if (response.data.user.role === "DOCTOR") {
-        navigate("/doc");
+        navigate("/doctor");
       } else if (response.data.user.role === "MEDICAL") {
-        navigate("/med");
+        navigate("/medical");
       }
 
     } catch (error: any) {
@@ -76,11 +78,11 @@ export default function SignUp() {
 
   return (
     <AuthLayout title="Create an account" subtitle="Select your role to get started">
-      <Card className="border-none shadow-xl w-full">
-        <CardContent className="pt-6">
+      <Card className="border-none shadow-xl">
+        <CardContent >
           <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
 
-            <TabsList className="grid w-full grid-cols-3 mb-6 bg-secondary/5 h-11">
+            <TabsList className="grid w-full grid-cols-3  bg-secondary/5 h-11">
               {["USER", "MEDICAL", "DOCTOR"].map((role) => (
                 <TabsTrigger
                   key={role}

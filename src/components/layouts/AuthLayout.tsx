@@ -9,11 +9,11 @@ interface AuthLayoutProps {
 
 export default function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-start pt-20 md:justify-center md:pt-4 bg-gradient-to-br from-[#243352] to-[#2BB564] p-4">
+    <div className="min-h-screen w-full flex flex-col items-center justify-start pt-20 md:justify-center md:pt-4 bg-gradient-to-br from-[#FAF9F6] to-[#EFE9E3] p-4">
       {/* Logo */}
       <div className="absolute top-4 left-4 z-10">
         <NavLink to="/" className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-[#2BB564] rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-[#0A6EFF] rounded-lg flex items-center justify-center">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="20"
@@ -29,7 +29,7 @@ export default function AuthLayout({ children, title, subtitle }: AuthLayoutProp
               <path d="M3.22 12H9.5l.5-1 2 4 .5-1h6.78" />
             </svg>
           </div>
-          <span className="text-lg font-bold text-white">
+          <span className="text-2xl text-[#0A6EFF] font-bold ">
             MedCare
           </span>
         </NavLink>

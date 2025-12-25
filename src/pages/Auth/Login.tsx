@@ -1,20 +1,25 @@
 import React, { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import axios from "axios";
-type AccountType = "patient" | "doctor" | "medical";
+import { toast } from "sonner"; // Assuming sonner, or use your toast library
+import { Eye, EyeOff } from "lucide-react"; // Import icons
+import AuthLayout from "@/components/layouts/AuthLayout";
+
+// type AccountType = "USER" | "DOCTOR" | "MEDICAL";
 
 const Login: React.FC = () => {
-  const [role, setRole] = useState<AccountType>("patient");
+  // const [role, setRole] = useState<AccountType>("USER");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false); // New State
   const [emailError, setEmailError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setEmail(value);
-
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (value && !emailRegex.test(value)) {
       setEmailError("Please enter a valid email address");
@@ -24,50 +29,56 @@ const Login: React.FC = () => {
   };
 
   const handleLogin = async () => {
+    if (!email || !password) {
+      toast.error("Missing Fields", { description: "Please fill in both email and password." });
+      return;
+    }
+    if (emailError) return;
+
+    setLoading(true);
     try {
-      const response = await axios.post("http://localhost:4000/api/auth/login", { email, password });
+      const response = await axios.post("http://localhost:4000/api/auth/login", { 
+        email, 
+        password,
+        // role 
+      });
+
       if (response.status === 200) {
-        if (role === "patient") {
-          navigate("/usr");
-        } else if (role === "doctor") {
-          navigate("/doc");
-        } else if (role === "medical") {
-          navigate("/med");
-        }
+        // 3. Get the REAL role from the backend
+        const { role, token } = response.data;
+
+        // Optional: Save token to localStorage here
+        localStorage.setItem("token", token);
+        localStorage.setItem("role", role);
+
+        toast.success("Login successful!", {
+          description: `Welcome back to MedCare`,
+        });
+
+        // 4. Redirect based on the role we received
+        setTimeout(() => {
+          if (role === "USER") {
+            navigate("/user");
+          } else if (role === "DOCTOR") {
+            navigate("/doctor");
+          } else if (role === "MEDICAL") {
+            navigate("/medical");
+          } else {
+            navigate("/");
+          }
+        }, 500);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      const errorMessage = error.response?.data?.message || "Something went wrong.";
+      toast.error("Login Failed", { description: errorMessage });
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-linear-to-br from-[#243352] to-[#2BB564]">
-      {/* Logo */}
-      <div className="absolute top-4 left-4 z-10">
-        <NavLink to="/" className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-[#2BB564] rounded-lg flex items-center justify-center">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="white"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-              <path d="M3.22 12H9.5l.5-1 2 4 .5-1h6.78" />
-            </svg>
-          </div>
-          <span className="text-lg font-bold text-white">
-            MedCare
-          </span>
-        </NavLink>
-      </div>
-
-      {/* Login Card */}
+    <AuthLayout title="Welcome Back!" subtitle="Please sign in to your account">
       <div className="flex-grow flex items-center justify-center p-4 sm:p-6">
         <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6 md:p-8 mx-auto">
           <div className="text-center mb-6">
@@ -79,75 +90,74 @@ const Login: React.FC = () => {
             </p>
           </div>
 
-          {/* Role Dropdown */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Role
-            </label>
+          {/* <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
             <select
               value={role}
               onChange={(e) => setRole(e.target.value as AccountType)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
             >
-              <option value="patient">Patient</option>
-              <option value="doctor">Doctor</option>
-              <option value="medical">Medical Shop</option>
+              <option value="USER">Patient</option>
+              <option value="DOCTOR">Doctor</option>
+              <option value="MEDICAL">Medical Shop</option>
             </select>
-          </div>
+          </div> */}
 
-          {/* Auth form goes here */}
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email Address
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
               <input
                 type="email"
                 value={email}
                 onChange={handleEmailChange}
-                className={`w-full rounded-lg border ${emailError ? "border-red-500" : "border-gray-300"
-                  } px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary`}
+                className={`w-full rounded-lg border ${emailError ? "border-red-500" : "border-gray-300"} px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary`}
                 placeholder="Enter your email"
               />
-              {emailError && (
-                <p className="text-red-500 text-xs mt-1">{emailError}</p>
-              )}
+              {emailError && <p className="text-red-500 text-xs mt-1">{emailError}</p>}
             </div>
 
+            {/* PASSWORD FIELD SECTION STARTS HERE */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="Enter your password"
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"} // Dynamic type
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" // added pr-10 for space
+                  placeholder="Enter your password"
+                />
+                <button
+                  type="button" // Important to prevent form submission
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
+            {/* PASSWORD FIELD SECTION ENDS HERE */}
 
-            <button className="w-full bg-primary hover:bg-primary/90 text-white rounded-lg py-2.5 font-medium transition-colors cursor-pointer"
-              onClick={handleLogin}>
-              Sign In
+            <button
+              className="w-full bg-primary hover:bg-primary/90 text-white rounded-lg py-2.5 font-medium transition-colors cursor-pointer disabled:opacity-50"
+              onClick={handleLogin}
+              disabled={loading}
+            >
+              {loading ? "Signing in..." : "Sign In"}
             </button>
           </div>
 
-          {/* Sign up link */}
           <div className="mt-6 text-center text-sm">
             <p className="text-gray-600">
               Don’t have an account?{" "}
-              <NavLink
-                to='/register'
-                className="text-primary hover:underline font-medium"
-              >
+              <NavLink to="/register" className="text-primary hover:underline font-medium">
                 Sign up
               </NavLink>
             </p>
           </div>
         </div>
       </div>
-    </div>
+    </AuthLayout>
   );
 };
 

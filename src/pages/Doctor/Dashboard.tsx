@@ -1,11 +1,10 @@
 
-
-const UserDashboard = () => {
+const DocDashboard = () => {
     return (
         <div>
-            Doctor Dashboard
+            asdf
         </div>
     );
 }
 
-export default UserDashboard
+export default DocDashboard;
