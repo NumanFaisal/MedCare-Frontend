@@ -7,6 +7,7 @@ import UserDashboard from './pages/User/Dashboard'
 import DocDashboard from './pages/Doctor/Dashboard'
 import MedDashboard from './pages/Medical/Dashboard'
 import DashboardLayout from './components/layouts/DashboardLayout'
+import CreatePrescription from './pages/Doctor/CreatePrescription/CreatePrescription.tsx'
 
 function App() {
 
@@ -41,6 +42,12 @@ function App() {
             <DashboardLayout role="DOCTOR">
               <Routes>
                 <Route index element={<DocDashboard />} />
+                
+                {/* This matches /doctor/create-prescription */}
+                <Route path="create-prescription" element={<CreatePrescription />} />
+
+                {/* This matches /doctor/patients */}
+                {/* <Route path="patients" element={<PatientsList />} /> */}
               </Routes>
             </DashboardLayout>
           } 
