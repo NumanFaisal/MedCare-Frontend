@@ -133,25 +133,25 @@ const CreatePrescription = () => {
                           <div className="flex justify-between items-start mb-4">
                               <h3 className="font-medium text-xl">Medication #{index + 1}</h3>
                               {medications.length > 1 && (
-                                  <Button type="button" variant="ghost" size="sm" onClick={() => removeMedicationField(index)} className="text-gray-600 border border-gray-200 hover:bg-[#FDE1D3] ">Remove</Button>
+                                <Button type="button" variant="ghost" size="sm" onClick={() => removeMedicationField(index)} className="text-gray-600 border border-gray-200 hover:bg-[#FDE1D3] ">Remove</Button>
                               )}
                           </div>
                           <div className="grid gap-4 md:grid-cols-2">
                               <div className="space-y-2">
-                                  <Label>Medication Name</Label>
-                                  <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" value={medication.name} onChange={(e) => updateMedication(index, 'name', e.target.value)} placeholder="e.g. Amoxicillin" />
+                                <Label>Medication Name</Label>
+                                <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" value={medication.name} onChange={(e) => updateMedication(index, 'name', e.target.value)} placeholder="e.g. Amoxicillin" />
                               </div>
                               <div className="space-y-2">
-                                  <Label>Dosage</Label>
-                                  <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" value={medication.dosage} onChange={(e) => updateMedication(index, 'dosage', e.target.value)} placeholder="e.g. 500mg" />
+                                <Label>Dosage</Label>
+                                <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" value={medication.dosage} onChange={(e) => updateMedication(index, 'dosage', e.target.value)} placeholder="e.g. 500mg" />
                               </div>
                               <div className="space-y-2">
-                                  <Label>Frequency</Label>
-                                  <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" value={medication.frequency} onChange={(e) => updateMedication(index, 'frequency', e.target.value)} placeholder="e.g. 3 times daily" />
+                                <Label>Frequency</Label>
+                                <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" value={medication.frequency} onChange={(e) => updateMedication(index, 'frequency', e.target.value)} placeholder="e.g. 3 times daily" />
                               </div>
                               <div className="space-y-2">
-                                  <Label>Duration</Label>
-                                  <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" value={medication.duration} onChange={(e) => updateMedication(index, 'duration', e.target.value)} placeholder="e.g. 7 days" />
+                              	<Label>Duration</Label>
+                              	<Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" value={medication.duration} onChange={(e) => updateMedication(index, 'duration', e.target.value)} placeholder="e.g. 7 days" />
                               </div>
                           </div>
                       </div>
@@ -164,11 +164,11 @@ const CreatePrescription = () => {
                       {/* PREVIEW POPUP START */}
                       <Dialog>
                           <DialogTrigger asChild>
-                              <Button className="border border-gray-300 hover:bg-[#FDE1D3] text-gray-600" type="button" variant="outline">Preview</Button>
+                            <Button className="border border-gray-300 hover:bg-[#FDE1D3] text-gray-600" type="button" variant="outline">Preview</Button>
                           </DialogTrigger>
                           <DialogContent className="max-w-3xl bg-white max-h-[90vh] overflow-y-auto">
                               <DialogHeader>
-                                  <DialogTitle className="text-2xl font-bold text-center border-b pb-4">Medical Prescription</DialogTitle>
+                                <DialogTitle className="text-2xl font-bold text-center border-b pb-4">Medical Prescription</DialogTitle>
                               </DialogHeader>
                               <div className="p-6 space-y-6">
                                   <div className="flex justify-between text-sm">

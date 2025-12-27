@@ -8,6 +8,8 @@ import DocDashboard from './pages/Doctor/Dashboard'
 import MedDashboard from './pages/Medical/Dashboard'
 import DashboardLayout from './components/layouts/DashboardLayout'
 import CreatePrescription from './pages/Doctor/CreatePrescription/CreatePrescription.tsx'
+import PatientsList from './pages/Doctor/PatientsList/PatientsList.tsx'
+import DocProfile from './pages/Doctor/DocProfile/DocProfile.tsx'
 
 function App() {
 
@@ -47,7 +49,9 @@ function App() {
                 <Route path="create-prescription" element={<CreatePrescription />} />
 
                 {/* This matches /doctor/patients */}
-                {/* <Route path="patients" element={<PatientsList />} /> */}
+                <Route path="patients" element={<PatientsList />} />
+
+                <Route path="profile" element={<DocProfile />} />
               </Routes>
             </DashboardLayout>
           } 
