@@ -153,7 +153,7 @@ const UserDashboard = () => {
                                             }`}>
                                                 {appt.status.charAt(0).toUpperCase() + appt.status.slice(1)}
                                             </div>
-                                            <Button size="sm" variant="outline" className="text-xs">
+                                            <Button size="sm" variant="outline" className="border-gray-300 border text-gray-700 hover:bg-[#FDE1D3]">
                                                 Details
                                                 <ChevronRight className="ml-1 h-3 w-3" />
                                             </Button>
@@ -202,7 +202,7 @@ const UserDashboard = () => {
                                                 Prescribed on {rx.date} by {rx.doctor}
                                             </div>
                                         </div>
-                                        <Button size="sm" variant="outline" className="text-gray-600 bg-white shadow-sm">
+                                        <Button size="sm" variant="outline" className="border-gray-300 border text-gray-700 hover:bg-[#FDE1D3]">
                                             Details
                                             <ChevronRight className="ml-1 h-3 w-3" />
                                         </Button>

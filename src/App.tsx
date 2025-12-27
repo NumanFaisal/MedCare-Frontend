@@ -12,6 +12,8 @@ import PatientsList from './pages/Doctor/PatientsList/PatientsList.tsx'
 import DocProfile from './pages/Doctor/DocProfile/DocProfile.tsx'
 import Prescription from './pages/User/Prescriptions/Prescritpion.tsx'
 import UserProfile from './pages/User/Profile/UserProfile.tsx'
+import FetchPrescriptions from './pages/Medical/fetch-prescriptions/fetch-prescriptions.tsx'
+import MedProfile from './pages/Medical/MedProfile/MedProfile.tsx'
 
 function App() {
 
@@ -69,6 +71,8 @@ function App() {
             <DashboardLayout role="MEDICAL">
               <Routes>
                 <Route index element={<MedDashboard />} />
+                <Route path='/fetch-prescriptions' element={<FetchPrescriptions />} />
+                <Route path='/profile' element={<MedProfile />} />
               </Routes>
             </DashboardLayout>
           } 
