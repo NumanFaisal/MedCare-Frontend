@@ -10,6 +10,8 @@ import DashboardLayout from './components/layouts/DashboardLayout'
 import CreatePrescription from './pages/Doctor/CreatePrescription/CreatePrescription.tsx'
 import PatientsList from './pages/Doctor/PatientsList/PatientsList.tsx'
 import DocProfile from './pages/Doctor/DocProfile/DocProfile.tsx'
+import Prescription from './pages/User/Prescriptions/Prescritpion.tsx'
+import UserProfile from './pages/User/Profile/UserProfile.tsx'
 
 function App() {
 
@@ -28,8 +30,9 @@ function App() {
             <DashboardLayout role="USER">
               <Routes>
                 <Route index element={<UserDashboard />} />
-                {/* You can add more sub-pages here later, e.g.: */}
-                {/* <Route path="profile" element={<UserProfile />} /> */}
+                
+                <Route path="prescriptions" element={<Prescription />} />
+                <Route path="profile" element={<UserProfile />} />
               </Routes>
             </DashboardLayout>
           } 

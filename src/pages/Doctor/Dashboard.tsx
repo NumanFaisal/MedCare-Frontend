@@ -176,13 +176,13 @@ const DocDashboard = () => {
                 <CardContent>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <Button className="h-auto py-4 flex flex-col " asChild>
-                            <NavLink to={"/create-prescription"} className="text-white">
+                            <NavLink to={"/doctor/create-prescription"} className="text-white">
                                 <Book className="mb-2 text-white "/>
                                 Create Prescription
                             </NavLink>
                         </Button>
                         <Button className="h-auto py-4 flex flex-col" asChild>
-                            <NavLink to={"/add-patient"} className="text-white">
+                            <NavLink to={"/doctor/patients"} className="text-white">
                                 <Users className="mb-2 text-white "/>
                                 Add Patient
                             </NavLink>
