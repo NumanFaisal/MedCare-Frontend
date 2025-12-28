@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { doctors } from "../../../services/doctorData";
+import { useNavigate } from "react-router-dom"; 
+// import { doctors } from "../../../services/doctorData"; // Uncomment in your real app
 import { Input } from "@/components/ui/input";
 import {
     Select,
@@ -20,9 +21,55 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Search, Filter, MapPin, Clock, IndianRupee } from "lucide-react";
 
+// --- MOCK DATA (Remove this and use your import in real app) ---
+const doctors = [
+    {
+        id: 1,
+        name: "Dr. Sarah Smith",
+        specialization: "Cardiologist",
+        clinic: "Heart Care Center",
+        experience: 12,
+        consultationFee: 800,
+        availability: "Available Today",
+        photo: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80&w=300&auto=format&fit=crop",
+    },
+    {
+        id: 2,
+        name: "Dr. James Wilson",
+        specialization: "Dermatologist",
+        clinic: "Skin Glow Clinic",
+        experience: 8,
+        consultationFee: 600,
+        availability: "Available Tomorrow",
+        photo: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=300&auto=format&fit=crop",
+    },
+    {
+        id: 3,
+        name: "Dr. Emily Davis",
+        specialization: "Pediatrician",
+        clinic: "Happy Kids Hospital",
+        experience: 15,
+        consultationFee: 500,
+        availability: "Available Today",
+        photo: "https://images.unsplash.com/photo-1594824476967-48c8b964273f?q=80&w=300&auto=format&fit=crop",
+    },
+    {
+        id: 4,
+        name: "Dr. Michael Brown",
+        specialization: "General Physician",
+        clinic: "City Health Clinic",
+        experience: 20,
+        consultationFee: 400,
+        availability: "Unavailable",
+        photo: "https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80&w=300&auto=format&fit=crop",
+    },
+];
+// --------------------------------------------------------------------------
+
 export default function BookNew() {
     const [searchTerm, setSearchTerm] = useState("");
     const [filterSpecialization, setFilterSpecialization] = useState("all");
+    const navigate = useNavigate(); 
 
     // Get unique specializations for the filter
     const specializations = [
@@ -56,12 +103,12 @@ export default function BookNew() {
             </div>
 
             {/* Search and Filter Section */}
-            <div className="flex flex-col md:flex-row gap-4 items-center bg-card p-4 rounded-lg border shadow-sm">
+            <div className="flex flex-col md:flex-row gap-4 items-center bg-card p-4 rounded-lg  border-2 border-gray-200 shadow-2xs">
                 <div className="relative w-full md:w-1/2">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                         placeholder="Search doctors, specializations, clinics..."
-                        className="pl-9"
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pl-9"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -77,9 +124,9 @@ export default function BookNew() {
                                 <SelectValue placeholder="Filter by Specialization" />
                             </div>
                         </SelectTrigger>
-                        <SelectContent className="bg-white border rounded-lg border-gray-100">
+                        <SelectContent className="bg-white border-none shadow-2xl rounded-lg border-gray-100 ">
                             {specializations.map((spec) => (
-                                <SelectItem key={spec} value={spec}>
+                                <SelectItem key={spec} value={spec} className="hover:bg-gray-200">
                                     {spec === "all" ? "All Specializations" : spec}
                                 </SelectItem>
                             ))}
@@ -92,12 +139,12 @@ export default function BookNew() {
             {filteredDoctors.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredDoctors.map((doctor) => (
-                        <Card key={doctor.id} className="overflow-hidden flex flex-col">
-                            <div className="aspect-video w-full overflow-hidden bg-muted relative">
+                        <Card key={doctor.id} className="border-2 border-gray-300 overflow-hidden flex flex-col hover:border-blue-300 transition-colors">
+                            <div className="aspect-video w-full overflow-hidden bg-muted relative ">
                                 <img
                                     src={doctor.photo}
                                     alt={doctor.name}
-                                    className="h-full w-full object-cover transition-transform hover:scale-105 duration-300"
+                                    className="h-full w-full object-cover  transition-transform hover:scale-105 duration-300"
                                 />
                                 <div className="absolute top-2 right-2">
                                     <Badge
@@ -146,7 +193,12 @@ export default function BookNew() {
                                 </div>
                             </CardContent>
                             <CardFooter className="pt-2">
-                                <Button className="w-full" size="lg">
+                                <Button 
+                                    className="w-full text-white" 
+                                    size="lg"
+                                    disabled={!doctor.availability.includes("Available")}
+                                    onClick={() => navigate(`/book/${doctor.id}`)}
+                                >
                                     Book Now
                                 </Button>
                             </CardFooter>
