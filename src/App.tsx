@@ -14,6 +14,7 @@ import Prescription from './pages/User/Prescriptions/Prescritpion.tsx'
 import UserProfile from './pages/User/Profile/UserProfile.tsx'
 import FetchPrescriptions from './pages/Medical/fetch-prescriptions/fetch-prescriptions.tsx'
 import MedProfile from './pages/Medical/MedProfile/MedProfile.tsx'
+import BookNew from './pages/User/Appointments/BookNew.tsx'
 
 function App() {
 
@@ -26,30 +27,31 @@ function App() {
         {/* USER ROUTES 
             Matches: /user, /user/profile, /user/prescriptions 
         */}
-        <Route 
-          path="/user/*" 
+        <Route
+          path="/user/*"
           element={
             <DashboardLayout role="USER">
               <Routes>
                 <Route index element={<UserDashboard />} />
-                
+
                 <Route path="prescriptions" element={<Prescription />} />
                 <Route path="profile" element={<UserProfile />} />
+                <Route path="appointments/book-new" element={<BookNew />} />
               </Routes>
             </DashboardLayout>
-          } 
+          }
         />
 
         {/* DOCTOR ROUTES 
             Matches: /doctor, /doctor/patients, etc.
         */}
-        <Route 
-          path="/doctor/*" 
+        <Route
+          path="/doctor/*"
           element={
             <DashboardLayout role="DOCTOR">
               <Routes>
                 <Route index element={<DocDashboard />} />
-                
+
                 {/* This matches /doctor/create-prescription */}
                 <Route path="create-prescription" element={<CreatePrescription />} />
 
@@ -59,14 +61,14 @@ function App() {
                 <Route path="profile" element={<DocProfile />} />
               </Routes>
             </DashboardLayout>
-          } 
+          }
         />
 
         {/* MEDICAL SHOP ROUTES 
             Matches: /medical, /medical/fetch-prescriptions, etc.
         */}
-        <Route 
-          path="/medical/*" 
+        <Route
+          path="/medical/*"
           element={
             <DashboardLayout role="MEDICAL">
               <Routes>
@@ -75,7 +77,7 @@ function App() {
                 <Route path='/profile' element={<MedProfile />} />
               </Routes>
             </DashboardLayout>
-          } 
+          }
         />
 
       </Routes>
