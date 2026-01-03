@@ -106,7 +106,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role }) => 
                     <div className="flex h-16 justify-between items-center">
                         <div className="flex items-center cursor-pointer" onClick={() => navigate('/')}>
                             <div className="flex items-center space-x-2">
-                                <div className="w-8 h-8 bg-third rounded-lg flex items-center justify-center shadow-sm">
+                                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-heart-pulse">
                                         <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
                                     </svg>
@@ -122,7 +122,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role }) => 
                                 {roleTitles[role]} Portal
                             </div>
                             <div className="hidden md:flex items-center gap-2 ml-2 border-l pl-4 border-gray-200">
-                                <Button variant="ghost" onClick={handleLogout} className="text-gray-500 hover:text-red-600 hover:bg-red-50">
+                                <Button variant="ghost" onClick={handleLogout} className="text-gray-500 hover:text-red-600 hover:bg-red-50 ">
                                     <LogOut className="h-5 w-5" />
                                 </Button>
                             </div>
@@ -177,8 +177,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role }) => 
                     </div>
                 )}
 
-                <main className="flex-grow p-4 sm:p-6 lg:p-8 overflow-y-auto bg-gray-50/50">
-                    <div className="max-w-7xl mx-auto">
+                <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto bg-gray-50/50">
+                    <div className="w-full">
                         {children}
                     </div>
                 </main>
