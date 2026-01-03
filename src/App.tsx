@@ -1,18 +1,28 @@
 import './App.css'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Login from './pages/Auth/Login'
+import LandingPage from './pages/LandingPage'
 import Register from './pages/Auth/Register'
 import { Toaster } from 'sonner'
 import UserDashboard from './pages/User/Dashboard'
 import DocDashboard from './pages/Doctor/Dashboard'
 import MedDashboard from './pages/Medical/Dashboard'
 import DashboardLayout from './components/layouts/DashboardLayout'
+import About from "./pages/about/page";
+import ContactPage from './pages/contact/page'
+import Features from './components/Features'
+
 
 function App() {
 
   return (
     <BrowserRouter>
+    
       <Routes>
+        <Route path="/about" element={<About />} />
+         <Route path="/features" element={<Features />} />
+        <Route path="/contact" element={<ContactPage />} />
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
