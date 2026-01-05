@@ -11,7 +11,7 @@ function Hero() {
       {/* Light Blue Background Blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-32 left-10 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-20 right-10 w-[32rem] h-[32rem] bg-purple-400/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-20 right-10  bg-purple-400/10 rounded-full blur-3xl" />
       </div>
 
       <div className="container mx-auto max-w-7xl relative z-10 flex justify-center">
@@ -32,7 +32,7 @@ function Hero() {
 
             <h1 className="text-4xl md:text-6xl font-extrabold leading-tight text-white">
               Your health is our{" "}
-              <span className="bg-gradient-to-r from-yellow-200 to-white bg-clip-text text-transparent">
+              <span className="">
                 First Priority.
               </span>
             </h1>
@@ -45,11 +45,11 @@ function Hero() {
             {/* Features */}
             <div className="flex flex-wrap gap-5 mt-4 justify-center lg:justify-start">
               <div className="flex items-center gap-2 text-white/90 text-sm">
-                <Shield className="w-5 h-5 text-yellow-300" />
+                <Shield className="w-5 h-5 " />
                 <span>Secure & Private</span>
               </div>
               <div className="flex items-center gap-2 text-white/90 text-sm">
-                <Users className="w-5 h-5 text-yellow-300" />
+                <Users className="w-5 h-5 " />
                 <span>24/7 Support</span>
               </div>
             </div>

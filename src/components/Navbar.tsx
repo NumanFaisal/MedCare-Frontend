@@ -31,13 +31,13 @@ function Navbar() {
 
                 {/* Desktop Nav */}
                 <div className="hidden md:flex justify-around items-center space-x-8">
-                    <Link to="/about" className="text-gray-700 hover:text-[#0A6EFF] font-medium">
+                    <Link to="/about" className="relative inline-block text-gray-700 font-medium after:absolute after:left-0 after:-bottom-1 after:h-[2px] after:w-0 after:bg-[#0A6EFF] after:transition-all after:duration-300 hover:after:w-full hover:text-[#0A6EFF]">
                         About
                     </Link>
-                    <Link to="/features" className="text-gray-700 hover:text-[#0A6EFF] font-medium">
+                    <Link to="/features" className="relative inline-block text-gray-700 font-medium after:absolute after:left-0 after:-bottom-1 after:h-[2px] after:w-0 after:bg-[#0A6EFF] after:transition-all after:duration-300 hover:after:w-full hover:text-[#0A6EFF]">
                         Features
                     </Link>
-                    <Link to="/contact" className="text-gray-700 hover:text-[#0A6EFF] font-medium">
+                    <Link to="/contact" className="relative inline-block text-gray-700 font-medium after:absolute after:left-0 after:-bottom-1 after:h-[2px] after:w-0 after:bg-[#0A6EFF] after:transition-all after:duration-300 hover:after:w-full hover:text-[#0A6EFF]">
                         Contact
                     </Link>
 
@@ -60,7 +60,7 @@ function Navbar() {
                                     </div>
 
                                     <Link 
-                                        to="/sign-in/patient"
+                                        to="/login"
                                         className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 transition-all"
                                         onClick={() => setIsUserDropdownOpen(false)}
                                     >
@@ -72,7 +72,7 @@ function Navbar() {
                                     </Link>
 
                                     <Link 
-                                        to="/sign-in/doctor"
+                                        to="/login"
                                         className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-green-50 transition-all"
                                         onClick={() => setIsUserDropdownOpen(false)}
                                     >
@@ -84,7 +84,7 @@ function Navbar() {
                                     </Link>
 
                                     <Link 
-                                        to="/sign-in/medical"
+                                        to="/login"
                                         className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 transition-all"
                                         onClick={() => setIsUserDropdownOpen(false)}
                                     >
@@ -99,7 +99,7 @@ function Navbar() {
                                 <div className="border-t border-gray-100 bg-gray-50 py-2">
                                     <div className="px-4 py-2 text-xs text-gray-500 mb-1">Don't have an account?</div>
                                     <Link 
-                                        to="/sign-up/patient"
+                                        to="/register"
                                         className="block px-4 py-2 text-sm font-medium text-[#0A6EFF] hover:bg-blue-50 transition-all"
                                         onClick={() => setIsUserDropdownOpen(false)}
                                     >
