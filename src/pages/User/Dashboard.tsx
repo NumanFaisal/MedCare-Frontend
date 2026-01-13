@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FileText, Calendar, Bell, ChevronRight, Activity, Pill, Bot, User, Clock } from 'lucide-react';
+import { FileText, Calendar, Bell, ChevronRight, Activity, Pill, Bot, User, Clock, MapPin, ClipboardList, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NavLink } from 'react-router-dom';
 import { AppDialog } from "@/components/ui/shad_dialog";
@@ -39,7 +39,7 @@ const UserDashboard = () => {
 
         const [apptRes, rxRes] = await Promise.allSettled([
           axios.get("http://localhost:4000/api/appointments/my-appointments", config),
-          axios.get("http://localhost:4000/prescriptions/patient/me", config)
+          axios.get("http://localhost:4000/api/prescriptions/patient/me", config)
         ]);
 
         // --- PROCESS APPOINTMENTS ---
@@ -64,19 +64,34 @@ const UserDashboard = () => {
           if (appts.length > 0) setUserName(appts[0].patient.name);
         }
 
-        // --- PROCESS PRESCRIPTIONS ---
+        // --- PROCESS PRESCRIPTIONS (Enhanced Data Mapping) ---
         if (rxRes.status === "fulfilled") {
-          const rxs = rxRes.value.data.map((rx: any) => ({
-            id: rx.id,
-            diagnosis: rx.diagnosis,
-            date: new Date(rx.createdAt).toLocaleDateString(),
-            doctor: {
-              name: `Dr. ${rx.doctor.user.firstName} ${rx.doctor.user.lastName}`,
-              specialization: rx.doctor.specialization
-            },
-            prescribedMedications: rx.medications || [],
-            additionalNotes: rx.notes
-          }));
+          const rxs = rxRes.value.data.map((rx: any) => {
+            const validUntil = new Date(rx.validUntilDate);
+            const isExpired = new Date() > validUntil;
+
+            return {
+              id: rx.id,
+              uniqueId: rx.prescriptionId || `RX-${rx.id}`, // Fallback ID
+              diagnosis: Array.isArray(rx.diagnosis) ? rx.diagnosis.join(", ") : rx.diagnosis,
+              date: new Date(rx.date).toLocaleDateString(),
+              validUntil: validUntil.toLocaleDateString(),
+              isExpired: isExpired,
+              doctor: {
+                name: `Dr. ${rx.doctor.user.firstName} ${rx.doctor.user.lastName}`,
+                specialization: rx.doctor.specialization || "General Physician",
+                hospital: rx.doctor.hospitalAffiliation || "Private Clinic"
+              },
+              prescribedMedications: rx.prescribedMedications.map((m: any) => ({
+                medication: m.medication.name,
+                dosage: m.dosage,
+                frequency: m.frequency,
+                // If duration isn't in DB, handle gracefully
+                duration: m.duration || "As advised" 
+              })),
+              additionalNotes: rx.additionalNotes
+            };
+          });
           setRecentPrescriptions(rxs);
         }
 
@@ -362,57 +377,85 @@ const UserDashboard = () => {
         )}
       </AppDialog>
 
-      {/* Prescription Details Modal */}
+      {/* Prescription Details Modal (ENHANCED) */}
       <AppDialog
         open={isPrescriptionDialogOpen}
         onClose={setIsPrescriptionDialogOpen}
         title="Prescription Details"
       >
         {selectedPrescription && (
-          <div className="space-y-6 p-2">
-            <div className="flex items-center gap-4 border-b pb-4">
-              <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-                <FileText className="h-8 w-8 text-primary" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold">{selectedPrescription.diagnosis}</h3>
-                <div className="flex items-center text-sm text-gray-500 mt-1">
-                  <Calendar className="h-3 w-3 mr-1" />
-                  <span>{selectedPrescription.date}</span>
+          <div className="space-y-6 p-1">
+            
+            {/* Header with ID and Date */}
+            <div className="flex justify-between items-start border-b pb-4">
+              <div className="flex items-center gap-4">
+                <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
+                  <FileText className="h-7 w-7 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold">Diagnosis: {selectedPrescription.diagnosis}</h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs bg-gray-100 px-2 py-0.5 rounded border text-gray-600">
+                      ID: {selectedPrescription.uniqueId}
+                    </span>
+                    {selectedPrescription.isExpired ? (
+                       <span className="text-xs bg-red-100 px-2 py-0.5 rounded border border-red-200 text-red-700 flex items-center gap-1">
+                         <AlertCircle className="w-3 h-3" /> Expired
+                       </span>
+                    ) : (
+                       <span className="text-xs bg-green-100 px-2 py-0.5 rounded border border-green-200 text-green-700 flex items-center gap-1">
+                         <CheckCircle2 className="w-3 h-3" /> Active
+                       </span>
+                    )}
+                  </div>
                 </div>
               </div>
+              <div className="text-right text-sm text-gray-500">
+                <p>Issued: <span className="font-medium text-gray-800">{selectedPrescription.date}</span></p>
+                <p>Valid Until: <span className={`font-medium ${selectedPrescription.isExpired ? "text-red-600" : "text-green-600"}`}>{selectedPrescription.validUntil}</span></p>
+              </div>
             </div>
 
-            <div className="bg-blue-50 p-4 rounded-lg flex items-center gap-3">
-              <div className="bg-white p-2 rounded-full">
+            {/* Doctor & Hospital Info */}
+            <div className="bg-blue-50/80 p-4 rounded-lg border border-blue-100 flex items-center gap-4">
+              <div className="bg-white p-2 rounded-full shadow-sm">
                 <User className="h-5 w-5 text-blue-600" />
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Prescribed by</p>
-                <p className="font-medium text-blue-900">{selectedPrescription.doctor.name}</p>
+              <div className="flex-1">
+                <p className="text-xs text-blue-500 uppercase font-semibold">Prescribed By</p>
+                <p className="font-bold text-blue-900">{selectedPrescription.doctor.name}</p>
                 <p className="text-xs text-blue-700">{selectedPrescription.doctor.specialization}</p>
+              </div>
+              <div className="text-right">
+                 <div className="flex items-center justify-end gap-1 text-blue-800 text-sm font-medium">
+                    <MapPin className="h-3.5 w-3.5" />
+                    {selectedPrescription.doctor.hospital}
+                 </div>
               </div>
             </div>
 
+            {/* Medications List */}
             <div>
-              <h4 className="font-medium mb-3 flex items-center gap-2">
+              <h4 className="font-medium mb-3 flex items-center gap-2 text-gray-800">
                 <Pill className="h-4 w-4 text-primary" />
                 Prescribed Medications
               </h4>
-              <div className="space-y-3">
+              <div className="space-y-3 max-h-[250px] overflow-y-auto pr-1">
                 {selectedPrescription.prescribedMedications.map((med: any, idx: number) => (
-                  <div key={idx} className="border rounded-lg p-3 bg-gray-50">
+                  <div key={idx} className="border border-gray-200 rounded-lg p-3 bg-gray-50/50 hover:bg-gray-50 transition-colors">
                     <div className="flex justify-between items-start mb-2">
-                      <span className="font-bold text-gray-800">{med.medication}</span>
-                      <span className="text-xs bg-white border px-2 py-1 rounded-full text-gray-600">{med.dosage}</span>
+                      <span className="font-bold text-gray-800 text-base">{med.medication}</span>
+                      <span className="text-xs bg-white border border-gray-200 px-2 py-1 rounded shadow-sm text-gray-700 font-medium">
+                        {med.dosage}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-gray-600">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
+                    <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5 text-gray-400" />
                         {med.frequency}
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
+                      <div className="flex items-center gap-1.5 justify-end">
+                        <Calendar className="h-3.5 w-3.5 text-gray-400" />
                         {med.duration}
                       </div>
                     </div>
@@ -420,6 +463,20 @@ const UserDashboard = () => {
                 ))}
               </div>
             </div>
+
+            {/* Additional Notes */}
+            {selectedPrescription.additionalNotes && (
+              <div className="mt-4">
+                <h4 className="font-medium mb-2 flex items-center gap-2 text-gray-800">
+                  <ClipboardList className="h-4 w-4 text-primary" />
+                  Doctor's Notes
+                </h4>
+                <div className="bg-yellow-50 border border-yellow-100 p-3 rounded-md text-sm text-gray-700 italic">
+                  "{selectedPrescription.additionalNotes}"
+                </div>
+              </div>
+            )}
+
           </div>
         )}
       </AppDialog>

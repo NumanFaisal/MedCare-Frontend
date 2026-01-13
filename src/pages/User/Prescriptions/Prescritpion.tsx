@@ -8,7 +8,7 @@ import axios from "axios";
 // Define Types based on what the UI expects
 interface FormattedPrescription {
   id: string;
-  originalId: number;
+  originalId: string;
   medication: string;
   dosage: string;
   frequency: string;
@@ -41,36 +41,44 @@ function Prescription() {
         // --- DATA TRANSFORMATION ---
         const flattenedData: FormattedPrescription[] = response.data.flatMap((rx: any) => {
           
-          // SAFETY CHECK: Ensure doctor and user exist before accessing properties
-          // If doctor data is missing, use placeholders
           const doctorName = rx.doctor?.user 
             ? `Dr. ${rx.doctor.user.firstName} ${rx.doctor.user.lastName}`
             : "Unknown Doctor";
 
-          const startDate = new Date(rx.createdAt);
+          const startDate = new Date(rx.date || rx.createdAt);
           
-          // SAFETY CHECK: If rx.medications is null/undefined, use empty array []
-          // This fixes the "reading 'map'" error
-          const medications = rx.medications || []; 
+          // Use 'validUntilDate' from the prescription to determine the end date
+          const validUntil = rx.validUntilDate ? new Date(rx.validUntilDate) : null;
+          
+          // Backend sends 'prescribedMedications' array
+          const medications = rx.prescribedMedications || []; 
 
           return medications.map((med: any, index: number) => {
-            const durationDays = parseInt(med.duration) || 7; 
-            const endDate = new Date(startDate);
-            endDate.setDate(startDate.getDate() + durationDays);
+            // Determine end date: Use validUntilDate if available, otherwise default to 7 days
+            let endDate = validUntil;
+            if (!endDate) {
+                endDate = new Date(startDate);
+                endDate.setDate(startDate.getDate() + 7);
+            }
 
             const isExpired = new Date() > endDate;
 
             return {
               id: `${rx.id}-${index}`, 
-              originalId: rx.id,
-              medication: med.medication,
+              originalId: rx.prescriptionId || String(rx.id), // Use readable ID like PRE-123
+              
+              // Access nested medication object
+              medication: med.medication?.name || "Unknown Med",
+              
               dosage: med.dosage,
               frequency: med.frequency,
               startDate: startDate.toISOString().split('T')[0],
               endDate: endDate.toISOString().split('T')[0],
               doctor: doctorName,
               status: isExpired ? "expired" : "active",
-              notes: rx.notes || "No additional notes provided."
+              
+              // Use 'additionalNotes' from backend
+              notes: rx.additionalNotes || "No additional notes provided."
             };
           });
         });
@@ -239,7 +247,7 @@ function Prescription() {
                         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                           <div>
                             <dt className="text-sm font-medium text-gray-500">Reference ID</dt>
-                            <dd className="mt-1 text-sm text-gray-900">RX-{prescription.originalId}</dd>
+                            <dd className="mt-1 text-sm text-gray-900">{prescription.originalId}</dd>
                           </div>
                           <div>
                             <dt className="text-sm font-medium text-gray-500">Prescribed By</dt>
@@ -250,7 +258,7 @@ function Prescription() {
                             <dd className="mt-1 text-sm text-gray-900">{prescription.startDate}</dd>
                           </div>
                           <div>
-                            <dt className="text-sm font-medium text-gray-500">End Date (Est.)</dt>
+                            <dt className="text-sm font-medium text-gray-500">Valid Until</dt>
                             <dd className="mt-1 text-sm text-gray-900">{prescription.endDate}</dd>
                           </div>
                           <div className="sm:col-span-2">
