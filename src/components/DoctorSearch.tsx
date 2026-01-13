@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import {  ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
+import { Link } from "react-router-dom";
 
 
 type DoctorType = {
@@ -203,12 +204,15 @@ function DoctorSearch() {
                   </p>
                 </div>
 
-                <button
-                  onClick={() => handleViewProfile(doctor.id)}
-                  className="w-11 h-11 rounded-full bg-[#0A6EFF] hover:bg-[#2563eb] flex items-center justify-center shadow-lg transition"
-                >
-                  <ArrowRight className="w-5 h-5 text-white" />
-                </button>
+                <Link to="/login">
+                  <button
+                    onClick={() => handleViewProfile(doctor.id)}
+                    className="w-11 h-11 rounded-full bg-[#0A6EFF] hover:bg-[#2563eb] flex items-center justify-center shadow-lg transition"
+                  >
+                    <ArrowRight className="w-5 h-5 text-white" />
+                  </button>
+                </Link>
+                
 
               </div>
             </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom"; 
+import axios from "axios"; // Import Axios
 import { 
     Calendar, 
     Clock, 
@@ -9,7 +10,8 @@ import {
     Star, 
     CheckCircle2, 
     User,
-    ShieldCheck
+    ShieldCheck,
+    Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -18,77 +20,78 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 
-// --- MOCK DATA ---
-const doctors = [
-    {
-        id: 1,
-        name: "Dr. Sarah Smith",
-        specialization: "Cardiologist",
-        clinic: "Heart Care Center, New York",
-        experience: 12,
-        consultationFee: 800,
-        rating: 4.9,
-        patients: "1.2k+",
-        about: "Dr. Sarah is a distinguished cardiologist with over a decade of experience in treating complex heart conditions. She specializes in preventive cardiology and heart failure management.",
-        photo: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80&w=300&auto=format&fit=crop",
-    },
-    {
-        id: 2,
-        name: "Dr. James Wilson",
-        specialization: "Dermatologist",
-        clinic: "Skin Glow Clinic, Miami",
-        experience: 8,
-        consultationFee: 600,
-        rating: 4.7,
-        patients: "800+",
-        about: "Dr. James is known for his expertise in cosmetic dermatology and skin cancer screening. He focuses on holistic skin care treatments.",
-        photo: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=300&auto=format&fit=crop",
-    },
-    {
-        id: 3,
-        name: "Dr. Emily Davis",
-        specialization: "Pediatrician",
-        clinic: "Happy Kids Hospital, Chicago",
-        experience: 15,
-        consultationFee: 500,
-        rating: 4.8,
-        patients: "2k+",
-        about: "Dr. Emily loves working with children and provides comprehensive care from infancy through adolescence. She is a strong advocate for vaccination.",
-        photo: "https://images.unsplash.com/photo-1594824476967-48c8b964273f?q=80&w=300&auto=format&fit=crop",
-    },
-    {
-        id: 4,
-        name: "Dr. Michael Brown",
-        specialization: "General Physician",
-        clinic: "City Health Clinic, Seattle",
-        experience: 20,
-        consultationFee: 400,
-        rating: 4.6,
-        patients: "3k+",
-        about: "Dr. Michael is a veteran general practitioner who believes in the power of primary care to prevent chronic diseases.",
-        photo: "https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80&w=300&auto=format&fit=crop",
-    },
-];
+// Define the shape of the Doctor object coming from the API
+interface DoctorData {
+    id: number;
+    name: string;
+    specialization: string;
+    clinic: string;
+    experience: number;
+    consultationFee: number;
+    rating: number;
+    patients: string;
+    about: string;
+    photo: string;
+}
+
+const PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=300&auto=format&fit=crop";
 
 export default function BookingDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const [doctor, setDoctor] = useState<typeof doctors[0] | null>(null);
+    
+    // --- STATE ---
+    const [doctor, setDoctor] = useState<DoctorData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+
+    // Form State
     const [selectedDate, setSelectedDate] = useState<string>("");
     const [selectedTime, setSelectedTime] = useState<string>("");
+    const [patientName, setPatientName] = useState("");
+    const [patientPhone, setPatientPhone] = useState("");
+    const [symptoms, setSymptoms] = useState("");
+    
     const [bookingStatus, setBookingStatus] = useState<'idle' | 'processing' | 'success'>('idle');
 
-    // Load doctor data based on ID from URL
+    // --- 1. FETCH DOCTOR DATA ---
     useEffect(() => {
-        if (id) {
-            const foundDoctor = doctors.find((d) => d.id === Number(id));
-            if (foundDoctor) {
-                setDoctor(foundDoctor);
+        const fetchDoctorDetails = async () => {
+            try {
+                const token = localStorage.getItem("token");
+                const response = await axios.get(`http://localhost:4000/api/users/doctors/${id}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                const data = response.data;
+                
+                // Map Backend Data to UI Format
+                const formattedDoctor: DoctorData = {
+                    id: data.id,
+                    name: `Dr. ${data.user.firstName} ${data.user.lastName}`,
+                    specialization: data.specialization,
+                    clinic: data.hospitalAffiliation || "Private Clinic",
+                    experience: data.yearsOfExperience,
+                    consultationFee: data.consultationFee,
+                    rating: 4.8, // Hardcoded for now (or fetch from reviews)
+                    patients: "500+", 
+                    about: data.professionalBio || "Experienced specialist committed to patient care.",
+                    photo: PLACEHOLDER_IMAGE // Backend doesn't have photos yet
+                };
+
+                setDoctor(formattedDoctor);
+                setLoading(false);
+            } catch (err) {
+                console.error("Error fetching doctor:", err);
+                setError("Failed to load doctor details.");
+                setLoading(false);
             }
-        }
+        };
+
+        if (id) fetchDoctorDetails();
     }, [id]);
 
-    // Helper: Get next 5 days
+    // --- HELPER: Get Dates ---
     const getUpcomingDates = () => {
         const dates = [];
         const today = new Date();
@@ -98,7 +101,7 @@ export default function BookingDetails() {
             dates.push({
                 dayName: date.toLocaleDateString('en-US', { weekday: 'short' }),
                 dayNumber: date.getDate(),
-                fullDate: date.toISOString().split('T')[0]
+                fullDate: date.toISOString().split('T')[0] // YYYY-MM-DD
             });
         }
         return dates;
@@ -110,24 +113,43 @@ export default function BookingDetails() {
         "05:30 PM", "06:00 PM"
     ];
 
-    const handleConfirmPayment = () => {
+    // --- 2. HANDLE BOOKING SUBMISSION ---
+    const handleConfirmPayment = async () => {
+        if (!doctor || !selectedDate || !selectedTime) return;
+
         setBookingStatus('processing');
-        // Simulate API call
-        setTimeout(() => {
+        
+        try {
+            const token = localStorage.getItem("token");
+            
+            // Combine Date and Time into ISO string
+            // Note: This is a simple implementation. For production, use date-fns or moment
+            const appointmentDateTime = new Date(`${selectedDate} ${selectedTime}`).toISOString();
+
+            await axios.post("http://localhost:4000/api/appointments/book", {
+                doctorId: doctor.id,
+                appointmentDate: appointmentDateTime,
+                status: "PENDING", // Initial status
+                reason: symptoms // Sending symptoms as reason
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
             setBookingStatus('success');
             window.scrollTo({ top: 0, behavior: 'smooth' });
-        }, 1500);
+            
+        } catch (err) {
+            console.error("Booking failed:", err);
+            alert("Failed to book appointment. Please try again."); // Simple alert for error
+            setBookingStatus('idle');
+        }
     };
 
-    if (!doctor) {
-        return (
-            <div className="min-h-screen flex flex-col items-center justify-center space-y-4">
-                <p className="text-muted-foreground">Doctor not found or loading...</p>
-                <Button variant="outline" onClick={() => navigate(-1)}>Go Back</Button>
-            </div>
-        );
-    }
+    // --- RENDER LOADING / ERROR ---
+    if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary"/></div>;
+    if (error || !doctor) return <div className="h-screen flex flex-col items-center justify-center gap-4"><p className="text-red-500">{error}</p><Button onClick={() => navigate(-1)}>Go Back</Button></div>;
 
+    // --- RENDER SUCCESS ---
     if (bookingStatus === 'success') {
         return (
             <div className="container max-w-lg mx-auto py-20 px-4">
@@ -138,16 +160,16 @@ export default function BookingDetails() {
                         </div>
                         <h2 className="text-2xl font-bold text-green-800">Booking Confirmed!</h2>
                         <div className="space-y-2 text-slate-600">
-                            <p>Appointment ID: <span className="font-mono font-bold text-slate-900">#APT-8834</span></p>
                             <p>Doctor: <strong>{doctor.name}</strong></p>
-                            <p>Date & Time: <strong>{new Date(selectedDate).toDateString()} at {selectedTime}</strong></p>
+                            <p>Date: <strong>{selectedDate}</strong></p>
+                            <p>Time: <strong>{selectedTime}</strong></p>
                         </div>
                         <div className="pt-6">
                             <Button 
-                                onClick={() => navigate(-1)} 
+                                onClick={() => navigate('/user')} // Redirect to My Appointments
                                 className="w-full bg-green-600 hover:bg-green-700 text-white"
                             >
-                                Back to Doctor List
+                                View My Appointments
                             </Button>
                         </div>
                     </CardContent>
@@ -190,7 +212,7 @@ export default function BookingDetails() {
                                 <div className="flex items-center gap-1.5 text-slate-700">
                                     <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                                     <span className="font-bold">{doctor.rating}</span>
-                                    <span className="text-slate-400">({doctor.patients} patients)</span>
+                                    <span className="text-slate-400">({doctor.patients})</span>
                                 </div>
                                 <div className="flex items-center gap-1.5 text-slate-700">
                                     <ShieldCheck className="w-4 h-4 text-blue-500" />
@@ -292,11 +314,21 @@ export default function BookingDetails() {
                             <div className="grid md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="name">Full Name</Label>
-                                    <Input id="name" placeholder="Ex. John Doe" />
+                                    <Input 
+                                        id="name" 
+                                        placeholder="Ex. John Doe"
+                                        value={patientName}
+                                        onChange={(e) => setPatientName(e.target.value)} 
+                                    />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="phone">Phone Number</Label>
-                                    <Input id="phone" placeholder="+91 98765 43210" />
+                                    <Input 
+                                        id="phone" 
+                                        placeholder="+91 98765 43210" 
+                                        value={patientPhone}
+                                        onChange={(e) => setPatientPhone(e.target.value)}
+                                    />
                                 </div>
                             </div>
                             <div className="space-y-2">
@@ -305,6 +337,8 @@ export default function BookingDetails() {
                                     id="symptoms" 
                                     placeholder="Briefly describe what you are feeling..." 
                                     className="min-h-[80px]"
+                                    value={symptoms}
+                                    onChange={(e) => setSymptoms(e.target.value)}
                                 />
                             </div>
                         </CardContent>
