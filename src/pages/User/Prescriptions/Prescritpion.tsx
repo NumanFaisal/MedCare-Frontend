@@ -1,11 +1,21 @@
+import { useState } from "react";
+import axios from "axios";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ChevronDown, ChevronUp, Download, FileText, Filter, Search, Loader2 } from "lucide-react";
-import { useState, useEffect } from "react";
-import axios from "axios";
+import { Skeleton } from "@/components/ui/skeleton";
+import { 
+  ChevronDown, 
+  ChevronUp, 
+  Download, 
+  FileText, 
+  Filter, 
+  Search, 
+  AlertCircle 
+} from "lucide-react";
 
-// Define Types based on what the UI expects
+// --- TYPES ---
 interface FormattedPrescription {
   id: string;
   originalId: string;
@@ -19,139 +29,136 @@ interface FormattedPrescription {
   notes: string;
 }
 
-function Prescription() {
-  const [prescriptions, setPrescriptions] = useState<FormattedPrescription[]>([]);
-  const [filteredPrescriptions, setFilteredPrescriptions] = useState<FormattedPrescription[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+// --- API FETCH FUNCTION ---
+const fetchPrescriptions = async (): Promise<FormattedPrescription[]> => {
+  const token = localStorage.getItem("token");
+  const response = await axios.get("http://localhost:4000/api/prescriptions/patient/me", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
 
+  // Data Transformation
+  return response.data.flatMap((rx: any) => {
+    const doctorName = rx.doctor?.user 
+      ? `Dr. ${rx.doctor.user.firstName} ${rx.doctor.user.lastName}`
+      : "Unknown Doctor";
+
+    const startDate = new Date(rx.date || rx.createdAt);
+    const validUntil = rx.validUntilDate ? new Date(rx.validUntilDate) : null;
+    const medications = rx.prescribedMedications || []; 
+
+    return medications.map((med: any, index: number) => {
+      let endDate = validUntil;
+      if (!endDate) {
+        endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 7);
+      }
+
+      const isExpired = new Date() > endDate;
+
+      return {
+        id: `${rx.id}-${index}`, 
+        originalId: rx.prescriptionId || String(rx.id),
+        medication: med.medication?.name || "Unknown Med",
+        dosage: med.dosage,
+        frequency: med.frequency,
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0],
+        doctor: doctorName,
+        status: isExpired ? "expired" : "active",
+        notes: rx.additionalNotes || "No additional notes provided."
+      };
+    });
+  });
+};
+
+function Prescription() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedPrescription, setExpandedPrescription] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState('all');
 
-  // --- 1. FETCH DATA FROM API ---
-  useEffect(() => {
-    const fetchPrescriptions = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const response = await axios.get("http://localhost:4000/api/prescriptions/patient/me", {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+  // --- 1. REACT QUERY ---
+  const { data: prescriptions = [], isLoading, isError } = useQuery({
+    queryKey: ['my-prescriptions'],
+    queryFn: fetchPrescriptions,
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+  });
 
-        // --- DATA TRANSFORMATION ---
-        const flattenedData: FormattedPrescription[] = response.data.flatMap((rx: any) => {
-          
-          const doctorName = rx.doctor?.user 
-            ? `Dr. ${rx.doctor.user.firstName} ${rx.doctor.user.lastName}`
-            : "Unknown Doctor";
+  // --- 2. DERIVED STATE (FILTERING) ---
+  const filteredPrescriptions = prescriptions.filter(p => {
+    const query = searchQuery.toLowerCase();
+    const matchesSearch = 
+      p.medication.toLowerCase().includes(query) || 
+      p.doctor.toLowerCase().includes(query) || 
+      p.id.toLowerCase().includes(query);
 
-          const startDate = new Date(rx.date || rx.createdAt);
-          
-          // Use 'validUntilDate' from the prescription to determine the end date
-          const validUntil = rx.validUntilDate ? new Date(rx.validUntilDate) : null;
-          
-          // Backend sends 'prescribedMedications' array
-          const medications = rx.prescribedMedications || []; 
+    const matchesFilter = filterStatus === 'all' || p.status === filterStatus;
 
-          return medications.map((med: any, index: number) => {
-            // Determine end date: Use validUntilDate if available, otherwise default to 7 days
-            let endDate = validUntil;
-            if (!endDate) {
-                endDate = new Date(startDate);
-                endDate.setDate(startDate.getDate() + 7);
-            }
-
-            const isExpired = new Date() > endDate;
-
-            return {
-              id: `${rx.id}-${index}`, 
-              originalId: rx.prescriptionId || String(rx.id), // Use readable ID like PRE-123
-              
-              // Access nested medication object
-              medication: med.medication?.name || "Unknown Med",
-              
-              dosage: med.dosage,
-              frequency: med.frequency,
-              startDate: startDate.toISOString().split('T')[0],
-              endDate: endDate.toISOString().split('T')[0],
-              doctor: doctorName,
-              status: isExpired ? "expired" : "active",
-              
-              // Use 'additionalNotes' from backend
-              notes: rx.additionalNotes || "No additional notes provided."
-            };
-          });
-        });
-
-        setPrescriptions(flattenedData);
-        setFilteredPrescriptions(flattenedData);
-        setLoading(false);
-
-      } catch (err) {
-        console.error("Error fetching prescriptions:", err);
-        setError("Failed to load prescriptions.");
-        setLoading(false);
-      }
-    };
-
-    fetchPrescriptions();
-  }, []);
-
-  // --- 2. HANDLE SEARCH ---
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value.toLowerCase();
-    setSearchQuery(query);
-    applyFilters(query, filterStatus);
-  };
-
-  // --- 3. HANDLE FILTER ---
-  const handleFilterChange = (status: string) => {
-    setFilterStatus(status);
-    applyFilters(searchQuery, status);
-  };
-
-  // Helper to apply both search and filter
-  const applyFilters = (query: string, status: string) => {
-    const filtered = prescriptions.filter(p => {
-      const matchesSearch = 
-        p.medication.toLowerCase().includes(query) || 
-        p.doctor.toLowerCase().includes(query) || 
-        p.id.toLowerCase().includes(query);
-
-      const matchesFilter = status === 'all' || p.status === status;
-
-      return matchesSearch && matchesFilter;
-    });
-    setFilteredPrescriptions(filtered);
-  };
+    return matchesSearch && matchesFilter;
+  });
 
   const toggleExpand = (id: string) => {
-    if (expandedPrescription === id) {
-      setExpandedPrescription(null);
-    } else {
-      setExpandedPrescription(id)
-    }
+    setExpandedPrescription(prev => prev === id ? null : id);
   };
 
-  if (loading) {
+  // --- 3. LOADING STATE (SKELETON) ---
+  if (isLoading) {
     return (
-      <div className="flex h-[50vh] items-center justify-center">
-        <div className="flex flex-col items-center gap-2">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-gray-500">Loading prescriptions...</p>
+      <div className="space-y-6">
+        {/* Header Skeleton */}
+        <div className="flex flex-col md:flex-row md:justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-48 bg-slate-200" />
+            <Skeleton className="h-4 w-64 bg-slate-200" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-48 bg-slate-200" />
+            <Skeleton className="h-10 w-20 bg-slate-200" />
+            <Skeleton className="h-10 w-20 bg-slate-200" />
+          </div>
         </div>
+
+        {/* List Skeleton */}
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-40 bg-slate-200" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="border border-slate-200 rounded-lg p-4 flex justify-between items-center">
+                <div className="flex gap-3 items-center">
+                  <Skeleton className="h-2 w-2 rounded-full bg-slate-200" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-5 w-32 bg-slate-200" />
+                    <Skeleton className="h-4 w-24 bg-slate-200" />
+                  </div>
+                </div>
+                <div className="flex gap-4 items-center">
+                  <div className="hidden sm:block space-y-2 text-right">
+                    <Skeleton className="h-4 w-24 bg-slate-200 ml-auto" />
+                    <Skeleton className="h-3 w-16 bg-slate-200 ml-auto" />
+                  </div>
+                  <Skeleton className="h-9 w-24 bg-slate-200 rounded-md" />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  if (error) {
+  // --- 4. ERROR STATE ---
+  if (isError) {
     return (
-      <div className="flex h-[50vh] items-center justify-center text-red-500">
-        {error}
+      <div className="flex h-[50vh] flex-col items-center justify-center text-red-500 gap-2">
+        <AlertCircle className="h-8 w-8" />
+        <p className="font-medium">Failed to load prescriptions.</p>
+        <Button variant="outline" onClick={() => window.location.reload()}>Retry</Button>
       </div>
     );
   }
 
+  // --- 5. MAIN RENDER ---
   return (
     <div>
       <div className="space-y-6">
@@ -171,26 +178,25 @@ function Prescription() {
                 className="pl-9"
                 placeholder="Search prescriptions"
                 value={searchQuery}
-                onChange={handleSearch}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
             <div className="flex gap-2">
-              <Button className="flex items-center gap-1 text-white" onClick={() => handleFilterChange('all')}>
+              <Button className="flex items-center gap-1 text-white" onClick={() => setFilterStatus('all')}>
                 <Filter className="h-4 w-4" />
                 <span>All</span>
               </Button>
               <Button
                 variant={filterStatus === 'active' ? 'default' : 'outline'}
-                className={`flex items-center gap-1 ${filterStatus === 'active' ? 'text-white bg-blue-500' : 'text-black'
-                  }`}
-                onClick={() => handleFilterChange('active')}
+                className={`flex items-center gap-1 ${filterStatus === 'active' ? 'text-white bg-blue-500' : 'text-black'}`}
+                onClick={() => setFilterStatus('active')}
               >
                 Active
               </Button>
               <Button
                 variant={filterStatus === 'expired' ? 'default' : 'outline'}
                 className="flex items-center gap-1"
-                onClick={() => handleFilterChange('expired')}
+                onClick={() => setFilterStatus('expired')}
               >
                 Expired
               </Button>
@@ -243,7 +249,7 @@ function Prescription() {
                       </div>
                     </div>
                     {expandedPrescription === prescription.id && (
-                      <div className="p-4 bg-gray-50 border-t  border-gray-300">
+                      <div className="p-4 bg-gray-50 border-t border-gray-300">
                         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                           <div>
                             <dt className="text-sm font-medium text-gray-500">Reference ID</dt>
@@ -285,7 +291,6 @@ function Prescription() {
                   </p>
                 </div>
               )}
-
             </div>
           </CardContent>
         </Card>

@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -19,7 +20,8 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, MapPin, Clock, IndianRupee } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Search, Filter, MapPin, Clock, IndianRupee, AlertCircle } from "lucide-react";
 
 // --- TYPES ---
 interface Doctor {
@@ -54,52 +56,36 @@ const PLACEHOLDER_IMAGES = [
   "https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80&w=300&auto=format&fit=crop",
 ];
 
-export default function BookNew() {
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+// --- API FUNCTION ---
+const fetchDoctors = async (): Promise<Doctor[]> => {
+  const token = localStorage.getItem("token");
+  const response = await axios.get<BackendDoctor[]>("http://localhost:4000/api/users/doctors", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
 
+  return response.data.map((doc, index) => ({
+    id: doc.id,
+    name: `Dr. ${doc.user.firstName} ${doc.user.lastName}`,
+    specialization: doc.specialization,
+    clinic: doc.hospitalAffiliation || "Private Clinic",
+    experience: doc.yearsOfExperience,
+    consultationFee: doc.consultationFee,
+    availability: doc.availabilitySchedule ? "Available Today" : "Check Availability",
+    photo: PLACEHOLDER_IMAGES[index % PLACEHOLDER_IMAGES.length],
+  }));
+};
+
+export default function BookNew() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterSpecialization, setFilterSpecialization] = useState("all");
-  const navigate = useNavigate();
 
-  // --- FETCH DATA ---
-  useEffect(() => {
-    const fetchDoctors = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const response = await axios.get<BackendDoctor[]>("http://localhost:4000/api/users/doctors", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const mappedDoctors: Doctor[] = response.data.map((doc, index) => ({
-          id: doc.id,
-          name: `Dr. ${doc.user.firstName} ${doc.user.lastName}`,
-          specialization: doc.specialization,
-          clinic: doc.hospitalAffiliation || "Private Clinic",
-          experience: doc.yearsOfExperience,
-          consultationFee: doc.consultationFee,
-          availability: doc.availabilitySchedule ? "Available Today" : "Check Availability",
-          photo: PLACEHOLDER_IMAGES[index % PLACEHOLDER_IMAGES.length],
-        }));
-
-        setDoctors(mappedDoctors);
-        setLoading(false);
-      } catch (err: any) {
-        console.error("Error fetching doctors:", err);
-        if (axios.isAxiosError(err) && err.response?.status === 401) {
-          setError("Session expired. Please login again.");
-        } else {
-          setError("Failed to load doctors. Please try again later.");
-        }
-        setLoading(false);
-      }
-    };
-
-    fetchDoctors();
-  }, []);
+  // --- REACT QUERY ---
+  const { data: doctors = [], isLoading, isError, error } = useQuery({
+    queryKey: ["doctors"],
+    queryFn: fetchDoctors,
+    staleTime: 1000 * 60 * 5, // Cache for 5 mins
+  });
 
   // --- FILTER LOGIC ---
   const specializations = [
@@ -120,9 +106,67 @@ export default function BookNew() {
     return matchesSearch && matchesFilter;
   });
 
-  if (loading) return <div className="p-10 text-center">Loading doctors...</div>;
-  if (error) return <div className="p-10 text-center text-red-500">{error}</div>;
+  // --- LOADING STATE (SKELETON) ---
+  if (isLoading) {
+    return (
+      <div className="container mx-auto p-6 space-y-8">
+        {/* Header Skeleton */}
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-64 bg-slate-200" />
+          <Skeleton className="h-4 w-96 bg-slate-200" />
+        </div>
 
+        {/* Filter Bar Skeleton */}
+        <div className="flex flex-col md:flex-row gap-4 items-center bg-card p-4 rounded-lg border-2 border-slate-100">
+          <Skeleton className="h-10 w-full md:w-1/2 bg-slate-200 rounded-md" />
+          <Skeleton className="h-10 w-full md:w-1/4 bg-slate-200 rounded-md" />
+        </div>
+
+        {/* Cards Grid Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Card key={i} className="border-2 border-slate-100 overflow-hidden flex flex-col">
+              {/* Image Skeleton */}
+              <Skeleton className="aspect-video w-full bg-slate-200" />
+              
+              <CardHeader className="pb-2 space-y-2">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-2 w-full">
+                    <Skeleton className="h-6 w-3/4 bg-slate-200" />
+                    <Skeleton className="h-4 w-1/2 bg-slate-200" />
+                  </div>
+                  <Skeleton className="h-8 w-16 bg-slate-200 rounded-md" />
+                </div>
+              </CardHeader>
+              
+              <CardContent className="space-y-3 flex-1">
+                <Skeleton className="h-4 w-1/3 bg-slate-200" />
+                <Skeleton className="h-4 w-2/3 bg-slate-200" />
+              </CardContent>
+              
+              <CardFooter className="pt-2">
+                <Skeleton className="h-10 w-full bg-slate-200 rounded-md" />
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // --- ERROR STATE ---
+  if (isError) {
+    return (
+      <div className="min-h-[50vh] flex flex-col items-center justify-center gap-4">
+        <AlertCircle className="w-12 h-12 text-red-500 opacity-80" />
+        <p className="text-lg font-medium text-slate-800">Failed to load doctors</p>
+        <p className="text-slate-500 text-sm">{(error as any)?.response?.status === 401 ? "Session expired. Please login again." : "Something went wrong. Please try again later."}</p>
+        <Button onClick={() => window.location.reload()} variant="outline">Retry</Button>
+      </div>
+    );
+  }
+
+  // --- MAIN RENDER ---
   return (
     <div className="container mx-auto p-6 space-y-8">
       {/* Header Section */}
@@ -136,7 +180,7 @@ export default function BookNew() {
       </div>
 
       {/* Search and Filter Section */}
-      <div className="flex flex-col md:flex-row gap-4 items-center bg-card p-4 rounded-lg border-2 border-gray-200 shadow-2xs">
+      <div className="flex flex-col md:flex-row gap-4 items-center bg-card p-4 rounded-lg border-2 border-gray-200 shadow-sm">
         <div className="relative w-full md:w-1/2">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -157,9 +201,9 @@ export default function BookNew() {
                 <SelectValue placeholder="Filter by Specialization" />
               </div>
             </SelectTrigger>
-            <SelectContent className="bg-white border-none shadow-2xl rounded-lg border-gray-100">
+            <SelectContent className="bg-white border-none shadow-xl rounded-lg border-gray-100">
               {specializations.map((spec) => (
-                <SelectItem key={spec} value={spec} className="hover:bg-gray-200">
+                <SelectItem key={spec} value={spec} className="hover:bg-gray-100 cursor-pointer">
                   {spec === "all" ? "All Specializations" : spec}
                 </SelectItem>
               ))}
@@ -174,7 +218,7 @@ export default function BookNew() {
           {filteredDoctors.map((doctor) => (
             <Card
               key={doctor.id}
-              className="border-2 border-gray-300 overflow-hidden flex flex-col hover:border-blue-300 transition-colors"
+              className="border-2 border-gray-200 overflow-hidden flex flex-col hover:border-blue-300 transition-colors shadow-sm hover:shadow-md"
             >
               <div className="aspect-video w-full overflow-hidden bg-muted relative">
                 <img
@@ -232,7 +276,6 @@ export default function BookNew() {
                 <Button
                   className="w-full text-white"
                   size="lg"
-                  // disabled={!doctor.availability.includes("Available")}
                   onClick={() => navigate(`/book/${doctor.id}`)}
                 >
                   Book Now

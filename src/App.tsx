@@ -48,7 +48,7 @@ function App() {
         <Route path="/register" element={<Register />} />
         
         {/* STANDALONE ROUTES (Accessible outside the Dashboard Layout if needed) */}
-        <Route path="/user/ai-health" element={<AiDashboard />} />
+        
         
         {/* CRITICAL FIX: 
            This route is placed at the root level so navigate('/book/1') works.
@@ -57,6 +57,7 @@ function App() {
            to navigate('/user/book/1').
         */}
         <Route path="/book/:id" element={<BookingDetails />} />
+        <Route path="/user/ai-health" element={<AiDashboard />} />
 
         {/* USER ROUTES */}
         <Route
@@ -68,6 +69,7 @@ function App() {
                 <Route path="prescriptions" element={<Prescription />} />
                 <Route path="profile" element={<UserProfile />} />
                 <Route path="appointments/book-new" element={<BookNew />} />
+                {/* <Route path="/user/ai-health" element={<AiDashboard />} /> */}
               </Routes>
             </DashboardLayout>
           }

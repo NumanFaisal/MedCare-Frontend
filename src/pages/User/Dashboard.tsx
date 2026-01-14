@@ -1,109 +1,141 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import axios from "axios";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FileText, Calendar, Bell, ChevronRight, Activity, Pill, Bot, User, Clock, MapPin, ClipboardList, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Skeleton } from "@/components/ui/skeleton";
+import { 
+  FileText, Calendar, Bell, ChevronRight, Activity, Pill, Bot, 
+  User, Clock, MapPin, ClipboardList, AlertCircle, CheckCircle2 
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NavLink } from 'react-router-dom';
 import { AppDialog } from "@/components/ui/shad_dialog";
 
-const UserDashboard = () => {
-  // --- STATE ---
-  const [bookedAppointments, setBookedAppointments] = useState<any[]>([]);
-  const [recentPrescriptions, setRecentPrescriptions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState("User");
+// --- TYPES ---
+// Defining basic shapes to avoid 'any'
+interface Appointment {
+  id: number;
+  doctorName: string;
+  specialty: string;
+  date: string;
+  time: string;
+  reason: string;
+  status: string;
+  patient: {
+    name: string;
+    contact: string;
+    age: number | string;
+    gender: string;
+  };
+}
 
-  // State for Modals
-  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+interface Prescription {
+  id: number;
+  uniqueId: string;
+  diagnosis: string;
+  date: string;
+  validUntil: string;
+  isExpired: boolean;
+  doctor: {
+    name: string;
+    specialization: string;
+    hospital: string;
+  };
+  prescribedMedications: Array<{
+    medication: string;
+    dosage: string;
+    frequency: string;
+    duration: string;
+  }>;
+  additionalNotes: string;
+}
+
+// --- API FUNCTIONS ---
+const fetchAppointments = async (): Promise<Appointment[]> => {
+  const token = localStorage.getItem("token");
+  const { data } = await axios.get("http://localhost:4000/api/appointments/my-appointments", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+
+  return data.map((apt: any) => ({
+    id: apt.id,
+    doctorName: `Dr. ${apt.doctor.user.firstName} ${apt.doctor.user.lastName}`,
+    specialty: apt.doctor.specialization,
+    date: new Date(apt.appointmentDate).toLocaleDateString(),
+    time: new Date(apt.appointmentDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    reason: apt.notes,
+    status: apt.status.toLowerCase(),
+    patient: {
+      name: `${apt.patient.user.firstName} ${apt.patient.user.lastName}`,
+      contact: apt.patient.user.phoneNumber,
+      age: apt.patient.dateOfBirth ? new Date().getFullYear() - new Date(apt.patient.dateOfBirth).getFullYear() : 'N/A',
+      gender: apt.patient.bloodType || 'N/A'
+    }
+  }));
+};
+
+const fetchPrescriptions = async (): Promise<Prescription[]> => {
+  const token = localStorage.getItem("token");
+  const { data } = await axios.get("http://localhost:4000/api/prescriptions/patient/me", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+
+  return data.map((rx: any) => {
+    const validUntil = new Date(rx.validUntilDate);
+    const isExpired = new Date() > validUntil;
+
+    return {
+      id: rx.id,
+      uniqueId: rx.prescriptionId || `RX-${rx.id}`,
+      diagnosis: Array.isArray(rx.diagnosis) ? rx.diagnosis.join(", ") : rx.diagnosis,
+      date: new Date(rx.date).toLocaleDateString(),
+      validUntil: validUntil.toLocaleDateString(),
+      isExpired: isExpired,
+      doctor: {
+        name: `Dr. ${rx.doctor.user.firstName} ${rx.doctor.user.lastName}`,
+        specialization: rx.doctor.specialization || "General Physician",
+        hospital: rx.doctor.hospitalAffiliation || "Private Clinic"
+      },
+      prescribedMedications: rx.prescribedMedications.map((m: any) => ({
+        medication: m.medication.name,
+        dosage: m.dosage,
+        frequency: m.frequency,
+        duration: m.duration || "As advised"
+      })),
+      additionalNotes: rx.additionalNotes
+    };
+  });
+};
+
+const UserDashboard = () => {
+  // --- STATE (UI ONLY) ---
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isAppointmentDialogOpen, setIsAppointmentDialogOpen] = useState(false);
 
-  const [selectedPrescription, setSelectedPrescription] = useState<any>(null);
+  const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
   const [isPrescriptionDialogOpen, setIsPrescriptionDialogOpen] = useState(false);
 
-  const handleViewAppointmentDetails = (appointment: any) => {
-    setSelectedAppointment(appointment);
-    setIsAppointmentDialogOpen(true);
-  };
+  // --- REACT QUERY ---
+  const { 
+    data: bookedAppointments = [], 
+    isLoading: loadingAppts 
+  } = useQuery({
+    queryKey: ['my-appointments'],
+    queryFn: fetchAppointments,
+  });
 
-  const handleViewPrescriptionDetails = (prescription: any) => {
-    setSelectedPrescription(prescription);
-    setIsPrescriptionDialogOpen(true);
-  };
+  const { 
+    data: recentPrescriptions = [], 
+    isLoading: loadingRx 
+  } = useQuery({
+    queryKey: ['my-prescriptions'],
+    queryFn: fetchPrescriptions,
+  });
 
-  // --- FETCH DATA ---
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const config = { headers: { Authorization: `Bearer ${token}` } };
+  const isLoading = loadingAppts || loadingRx;
 
-        const [apptRes, rxRes] = await Promise.allSettled([
-          axios.get("http://localhost:4000/api/appointments/my-appointments", config),
-          axios.get("http://localhost:4000/api/prescriptions/patient/me", config)
-        ]);
-
-        // --- PROCESS APPOINTMENTS ---
-        if (apptRes.status === "fulfilled") {
-          const appts = apptRes.value.data.map((apt: any) => ({
-            id: apt.id,
-            doctorName: `Dr. ${apt.doctor.user.firstName} ${apt.doctor.user.lastName}`,
-            specialty: apt.doctor.specialization,
-            date: new Date(apt.appointmentDate).toLocaleDateString(),
-            time: new Date(apt.appointmentDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            reason: apt.notes,
-            status: apt.status.toLowerCase(),
-            patient: {
-              name: `${apt.patient.user.firstName} ${apt.patient.user.lastName}`,
-              contact: apt.patient.user.phoneNumber,
-              age: apt.patient.dateOfBirth ? new Date().getFullYear() - new Date(apt.patient.dateOfBirth).getFullYear() : 'N/A',
-              gender: apt.patient.bloodType || 'N/A'
-            }
-          }));
-          setBookedAppointments(appts);
-
-          if (appts.length > 0) setUserName(appts[0].patient.name);
-        }
-
-        // --- PROCESS PRESCRIPTIONS (Enhanced Data Mapping) ---
-        if (rxRes.status === "fulfilled") {
-          const rxs = rxRes.value.data.map((rx: any) => {
-            const validUntil = new Date(rx.validUntilDate);
-            const isExpired = new Date() > validUntil;
-
-            return {
-              id: rx.id,
-              uniqueId: rx.prescriptionId || `RX-${rx.id}`, // Fallback ID
-              diagnosis: Array.isArray(rx.diagnosis) ? rx.diagnosis.join(", ") : rx.diagnosis,
-              date: new Date(rx.date).toLocaleDateString(),
-              validUntil: validUntil.toLocaleDateString(),
-              isExpired: isExpired,
-              doctor: {
-                name: `Dr. ${rx.doctor.user.firstName} ${rx.doctor.user.lastName}`,
-                specialization: rx.doctor.specialization || "General Physician",
-                hospital: rx.doctor.hospitalAffiliation || "Private Clinic"
-              },
-              prescribedMedications: rx.prescribedMedications.map((m: any) => ({
-                medication: m.medication.name,
-                dosage: m.dosage,
-                frequency: m.frequency,
-                // If duration isn't in DB, handle gracefully
-                duration: m.duration || "As advised" 
-              })),
-              additionalNotes: rx.additionalNotes
-            };
-          });
-          setRecentPrescriptions(rxs);
-        }
-
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDashboardData();
-  }, []);
+  // Determine User Name (Fallback logic from original code)
+  const userName = bookedAppointments.length > 0 ? bookedAppointments[0].patient.name : "User";
 
   const healthIndicators = [
     { name: "Blood Pressure", value: "120/80", status: "Normal" },
@@ -111,6 +143,83 @@ const UserDashboard = () => {
     { name: "Blood Sugar", value: "95 mg/dL", status: "Normal" },
   ];
 
+  const handleViewAppointmentDetails = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setIsAppointmentDialogOpen(true);
+  };
+
+  const handleViewPrescriptionDetails = (prescription: Prescription) => {
+    setSelectedPrescription(prescription);
+    setIsPrescriptionDialogOpen(true);
+  };
+
+  // --- SKELETON LOADER ---
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-10 w-64 mb-2 bg-slate-200" />
+          <Skeleton className="h-4 w-40 bg-slate-200" />
+        </div>
+
+        {/* AI Health Card Skeleton */}
+        <Card className="border-slate-100">
+          <CardHeader>
+            <Skeleton className="h-8 w-48 mb-2 bg-slate-200" />
+            <Skeleton className="h-4 w-96 bg-slate-200" />
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-3">
+              <Skeleton className="h-10 w-32 bg-slate-200 rounded-md" />
+              <Skeleton className="h-10 w-48 bg-slate-200 rounded-md" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Indicators Skeleton */}
+        <div className="grid gap-4 md:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <div className="flex justify-between">
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-20 bg-slate-200" />
+                    <Skeleton className="h-8 w-24 bg-slate-200" />
+                  </div>
+                  <Skeleton className="h-10 w-10 rounded-full bg-slate-200" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Lists Skeleton */}
+        <div className="grid gap-6 md:grid-cols-2">
+          {[1, 2].map((i) => (
+            <Card key={i}>
+              <CardHeader className="pb-2 flex flex-row justify-between">
+                <Skeleton className="h-6 w-40 bg-slate-200" />
+                <Skeleton className="h-8 w-24 rounded-full bg-slate-200" />
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {[1, 2, 3].map((j) => (
+                  <div key={j} className="flex justify-between items-center border-b pb-3">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-32 bg-slate-200" />
+                      <Skeleton className="h-3 w-24 bg-slate-200" />
+                    </div>
+                    <Skeleton className="h-8 w-20 bg-slate-200" />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // --- MAIN RENDER ---
   return (
     <div className="space-y-6">
       <div>
@@ -180,12 +289,7 @@ const UserDashboard = () => {
             </div>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <div className="text-center py-6">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-3"></div>
-                <p className="text-gray-500 text-sm">Loading appointments...</p>
-              </div>
-            ) : bookedAppointments.length > 0 ? (
+            {bookedAppointments.length > 0 ? (
               <div className="space-y-4">
                 {bookedAppointments.map(appt => (
                   <div key={appt.id} className="flex items-center justify-between border-b pb-3 last:border-0">
@@ -240,11 +344,7 @@ const UserDashboard = () => {
             </div>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <div className="text-center py-6">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-3"></div>
-              </div>
-            ) : recentPrescriptions.length > 0 ? (
+            {recentPrescriptions.length > 0 ? (
               <div className="space-y-4">
                 {recentPrescriptions.map(rx => (
                   <div key={rx.id} className="flex items-center justify-between border-b pb-3 last:border-0">
@@ -340,9 +440,8 @@ const UserDashboard = () => {
               </div>
               <div className="space-y-1">
                 <p className="text-sm font-medium text-gray-500">Status</p>
-                <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  selectedAppointment.status === 'booked' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
-                }`}>
+                <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${selectedAppointment.status === 'booked' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                  }`}>
                   {selectedAppointment.status.toUpperCase()}
                 </div>
               </div>
@@ -377,7 +476,7 @@ const UserDashboard = () => {
         )}
       </AppDialog>
 
-      {/* Prescription Details Modal (ENHANCED) */}
+      {/* Prescription Details Modal */}
       <AppDialog
         open={isPrescriptionDialogOpen}
         onClose={setIsPrescriptionDialogOpen}
@@ -385,7 +484,7 @@ const UserDashboard = () => {
       >
         {selectedPrescription && (
           <div className="space-y-6 p-1">
-            
+
             {/* Header with ID and Date */}
             <div className="flex justify-between items-start border-b pb-4">
               <div className="flex items-center gap-4">
@@ -399,13 +498,13 @@ const UserDashboard = () => {
                       ID: {selectedPrescription.uniqueId}
                     </span>
                     {selectedPrescription.isExpired ? (
-                       <span className="text-xs bg-red-100 px-2 py-0.5 rounded border border-red-200 text-red-700 flex items-center gap-1">
-                         <AlertCircle className="w-3 h-3" /> Expired
-                       </span>
+                      <span className="text-xs bg-red-100 px-2 py-0.5 rounded border border-red-200 text-red-700 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" /> Expired
+                      </span>
                     ) : (
-                       <span className="text-xs bg-green-100 px-2 py-0.5 rounded border border-green-200 text-green-700 flex items-center gap-1">
-                         <CheckCircle2 className="w-3 h-3" /> Active
-                       </span>
+                      <span className="text-xs bg-green-100 px-2 py-0.5 rounded border border-green-200 text-green-700 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> Active
+                      </span>
                     )}
                   </div>
                 </div>
@@ -427,10 +526,10 @@ const UserDashboard = () => {
                 <p className="text-xs text-blue-700">{selectedPrescription.doctor.specialization}</p>
               </div>
               <div className="text-right">
-                 <div className="flex items-center justify-end gap-1 text-blue-800 text-sm font-medium">
-                    <MapPin className="h-3.5 w-3.5" />
-                    {selectedPrescription.doctor.hospital}
-                 </div>
+                <div className="flex items-center justify-end gap-1 text-blue-800 text-sm font-medium">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {selectedPrescription.doctor.hospital}
+                </div>
               </div>
             </div>
 

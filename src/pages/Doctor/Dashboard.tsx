@@ -1,12 +1,17 @@
+import { useState } from "react";
+import axios from "axios";
+import { useQuery } from "@tanstack/react-query";
+import { NavLink } from "react-router-dom";
+import { 
+  BarChart, Book, Calendar, ChevronRight, Clock, 
+  Heart, Users, Loader2 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Book, Calendar, ChevronRight, Clock, Heart, Users, Loader2 } from "lucide-react";
-import { NavLink } from "react-router-dom";
 import { AppDialog } from "@/components/ui/shad_dialog";
-import { useState, useEffect } from "react";
-import axios from "axios";
+import { Skeleton } from "@/components/ui/skeleton";
 
-// Define Types
+// --- TYPES ---
 interface PatientData {
   id: number;
   appointmentId: number;
@@ -18,7 +23,6 @@ interface PatientData {
   lastVisit: string;
   reason: string;
   status: string;
-  // These are placeholders since they aren't in the Appointment API yet
   bloodPressure: string;
   heartRate: number | string;
 }
@@ -31,81 +35,84 @@ interface ScheduleData {
   type: string;
 }
 
-const DocDashboard = () => {
-  const [recentPatients, setRecentPatients] = useState<PatientData[]>([]);
-  const [todaySchedule, setTodaySchedule] = useState<ScheduleData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [doctorName, setDoctorName] = useState("Doctor");
+interface DashboardData {
+  recentPatients: PatientData[];
+  todaySchedule: ScheduleData[];
+  stats: {
+    todayCount: number;
+    totalAppointments: number;
+  };
+}
 
-  // Modal States
+// --- API FETCH FUNCTION ---
+const fetchDashboardData = async (): Promise<DashboardData> => {
+  const token = localStorage.getItem("token");
+  const response = await axios.get("http://localhost:4000/api/appointments/doctor/my-appointments", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+
+  const rawAppointments = response.data.appointments;
+  const todayStr = new Date().toLocaleDateString();
+
+  // 1. Transform Recent Patients
+  const recentPatients: PatientData[] = rawAppointments.map((appt: any) => {
+    const dob = new Date(appt.patient.dateOfBirth);
+    const age = new Date().getFullYear() - dob.getFullYear();
+
+    return {
+      id: appt.patient.id,
+      appointmentId: appt.id,
+      name: `${appt.patient.user.firstName} ${appt.patient.user.lastName}`,
+      age: age > 0 ? age : "N/A",
+      gender: appt.patient.bloodType ? "Known" : "N/A",
+      bloodGroup: appt.patient.bloodType || "N/A",
+      phone: appt.patient.user.phoneNumber,
+      lastVisit: appt.appointmentDate,
+      reason: appt.notes || "Routine Checkup",
+      status: appt.status,
+      bloodPressure: "120/80", // Placeholder
+      heartRate: 72, // Placeholder
+    };
+  }).slice(0, 5);
+
+  // 2. Transform Today's Schedule
+  const todaySchedule: ScheduleData[] = rawAppointments
+    .filter((appt: any) => new Date(appt.appointmentDate).toLocaleDateString() === todayStr)
+    .map((appt: any) => ({
+      id: appt.id,
+      patient: `${appt.patient.user.firstName} ${appt.patient.user.lastName}`,
+      time: new Date(appt.appointmentDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      status: appt.status.toLowerCase(),
+      type: appt.notes || "General"
+    }));
+
+  return {
+    recentPatients,
+    todaySchedule,
+    stats: {
+      todayCount: todaySchedule.length,
+      totalAppointments: rawAppointments.length
+    }
+  };
+};
+
+const DocDashboard = () => {
+  // Local State for UI interactions
   const [selectedPatient, setSelectedPatient] = useState<PatientData | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<ScheduleData | null>(null);
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
+  const [doctorName] = useState("Numan Faisal"); // In real app, fetch from auth context
 
-  // --- FETCH DATA ---
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const response = await axios.get("http://localhost:4000/api/appointments/doctor/my-appointments", {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+  // --- REACT QUERY ---
+  const { data, isLoading } = useQuery({
+    queryKey: ['doctor-dashboard'],
+    queryFn: fetchDashboardData,
+  });
 
-        const rawAppointments = response.data.appointments;
-
-        // 1. Process "Recent Patients" List
-        // We map the raw appointment data to the PatientData interface
-        const formattedPatients: PatientData[] = rawAppointments.map((appt: any) => {
-          const dob = new Date(appt.patient.dateOfBirth);
-          const age = new Date().getFullYear() - dob.getFullYear();
-
-          return {
-            id: appt.patient.id, // Patient ID
-            appointmentId: appt.id,
-            name: `${appt.patient.user.firstName} ${appt.patient.user.lastName}`,
-            age: age > 0 ? age : "N/A",
-            gender: appt.patient.bloodType ? "Known" : "N/A", // API doesn't send gender, using bloodtype check or placeholder
-            bloodGroup: appt.patient.bloodType || "N/A",
-            phone: appt.patient.user.phoneNumber,
-            lastVisit: appt.appointmentDate,
-            reason: appt.notes || "Routine Checkup",
-            status: appt.status,
-            // Placeholders until Vitals are added to DB
-            bloodPressure: "120/80",
-            heartRate: 72,
-          };
-        });
-
-        // 2. Process "Today's Schedule"
-        // Filter appointments where date === today
-        const todayStr = new Date().toLocaleDateString();
-        const todaysAppts = rawAppointments.filter((appt: any) =>
-          new Date(appt.appointmentDate).toLocaleDateString() === todayStr
-        ).map((appt: any) => ({
-          id: appt.id,
-          patient: `${appt.patient.user.firstName} ${appt.patient.user.lastName}`,
-          time: new Date(appt.appointmentDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          status: appt.status.toLowerCase(),
-          type: appt.notes || "General"
-        }));
-
-        setRecentPatients(formattedPatients.slice(0, 5)); // Show top 5 recent
-        setTodaySchedule(todaysAppts);
-
-        // Set Doctor Name from token or response if available (Mocking for now based on context)
-        // In a real app, you might decode the JWT or fetch /auth/profile
-        setDoctorName("Numan Faisal");
-
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDashboardData();
-  }, []);
+  const recentPatients = data?.recentPatients || [];
+  const todaySchedule = data?.todaySchedule || [];
+  const stats = data?.stats || { todayCount: 0, totalAppointments: 0 };
 
   const handleViewDetails = (patient: PatientData) => {
     setSelectedPatient(patient);
@@ -117,10 +124,59 @@ const DocDashboard = () => {
     setIsScheduleDialogOpen(true);
   };
 
-  if (loading) {
-    return <div className="h-[80vh] flex items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
+  // --- LOADING STATE (SKELETON) ---
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-10 w-64 mb-2 bg-slate-200" />
+          <Skeleton className="h-5 w-48 bg-slate-200" />
+        </div>
+        
+        {/* Stats Grid Skeleton */}
+        <div className="grid gap-4 md:grid-cols-4 mt-7">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="border-none shadow-lg">
+              <CardContent className="p-6">
+                <div className="flex justify-between">
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-24 bg-slate-200" />
+                    <Skeleton className="h-8 w-12 bg-slate-200" />
+                  </div>
+                  <Skeleton className="h-12 w-12 rounded-full bg-slate-200" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Content Grid Skeleton */}
+        <div className="grid gap-6 md:grid-cols-2 mt-10">
+          {[1, 2].map((i) => (
+            <Card key={i} className="border-none shadow-lg h-96">
+              <CardHeader>
+                <Skeleton className="h-6 w-40 bg-slate-200" />
+                <Skeleton className="h-4 w-32 bg-slate-200" />
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {[1, 2, 3].map((j) => (
+                  <div key={j} className="flex justify-between">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-32 bg-slate-200" />
+                      <Skeleton className="h-3 w-20 bg-slate-200" />
+                    </div>
+                    <Skeleton className="h-8 w-16 bg-slate-200" />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
   }
 
+  // --- MAIN RENDER ---
   return (
     <div>
       <div className="space-y-6">
@@ -130,14 +186,14 @@ const DocDashboard = () => {
         </div>
       </div>
 
-      {/* Stats overview (Static for now, can be calculated from recentPatients length) */}
+      {/* Stats overview */}
       <div className="grid gap-4 md:grid-cols-4 mt-7">
         <Card className="border-none shadow-lg">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Today's Patients</p>
-                <p className="text-4xl font-bold mt-1">{todaySchedule.length}</p>
+                <p className="text-4xl font-bold mt-1">{stats.todayCount}</p>
               </div>
               <div className="h-12 w-12 bg-[#E5DEFF] rounded-full flex items-center justify-center">
                 <Users className="h-6 w-6 text-primary" />
@@ -150,7 +206,7 @@ const DocDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Total Appointments</p>
-                <p className="text-4xl font-bold mt-1">{recentPatients.length}</p>
+                <p className="text-4xl font-bold mt-1">{stats.totalAppointments}</p>
               </div>
               <div className="h-12 w-12 bg-[#E5DEFF] rounded-full flex items-center justify-center">
                 <Clock className="h-6 w-6 text-primary" />
@@ -158,7 +214,7 @@ const DocDashboard = () => {
             </div>
           </CardContent>
         </Card>
-        {/* Keep other cards static or connect later */}
+        {/* Static Cards */}
         <Card className="border-none shadow-lg">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -241,7 +297,7 @@ const DocDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Recent Patient (CONNECTED TO BACKEND) */}
+        {/* Recent Patients */}
         <Card className="border-none shadow-lg">
           <CardHeader className="pd-2">
             <div className="flex justify-between items-center">
@@ -290,7 +346,7 @@ const DocDashboard = () => {
         </Card>
       </div>
 
-      {/* Quick Actions  */}
+      {/* Quick Actions */}
       <Card className="mt-7 border-none shadow-lg">
         <CardHeader className="pb-2">
           <CardTitle className="text-xl">Quick Actions</CardTitle>
@@ -342,7 +398,6 @@ const DocDashboard = () => {
                 <p className="text-sm text-gray-500">Patient ID: #{selectedPatient.id}</p>
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-1">
                 <p className="text-sm font-medium text-gray-500">Age</p>
@@ -368,7 +423,6 @@ const DocDashboard = () => {
                 <p className="text-sm font-medium text-gray-500">Heart Rate</p>
                 <p className="text-base font-medium">{selectedPatient.heartRate} bpm</p>
               </div>
-
               <div className="space-y-1">
                 <p className="text-sm font-medium text-gray-500">Status</p>
                 <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${selectedPatient.status === 'booked' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
@@ -409,7 +463,6 @@ const DocDashboard = () => {
                 <p className="text-sm text-gray-500">{selectedSchedule.type}</p>
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-1">
                 <p className="text-sm font-medium text-gray-500">Time</p>
@@ -430,7 +483,7 @@ const DocDashboard = () => {
         )}
       </AppDialog>
     </div>
-  )
-}
+  );
+};
 
 export default DocDashboard;

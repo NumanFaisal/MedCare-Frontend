@@ -1,9 +1,14 @@
-import { useState, useRef, useEffect } from "react";
-import { ChevronLeft, ChevronRight, ArrowRight, Loader2, MapPin, Clock, IndianRupee, Stethoscope } from 'lucide-react';
+import { useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
+import { useQuery } from "@tanstack/react-query";
+import { 
+  ChevronLeft, ChevronRight, ArrowRight, MapPin, 
+  Clock, IndianRupee, Stethoscope, AlertCircle 
+} from 'lucide-react';
+import { Skeleton } from "@/components/ui/skeleton";
 
-// UI Type Definition
+// --- TYPES ---
 type DoctorType = {
   id: string;
   name: string;
@@ -23,47 +28,37 @@ const PLACEHOLDER_IMAGES = [
   'https://img.freepik.com/free-photo/doctor-offering-medical-teleconsultation_23-2149329007.jpg?w=740',
 ];
 
-function DoctorSearch() {
-  const [doctors, setDoctors] = useState<DoctorType[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+// --- API FETCH FUNCTION ---
+const fetchDoctors = async (): Promise<DoctorType[]> => {
+  const response = await axios.get("http://localhost:4000/api/users/doctors");
   
+  // Map Backend Data -> UI Data
+  return response.data.map((doc: any, index: number) => ({
+    id: doc.id.toString(),
+    name: `Dr. ${doc.user.firstName} ${doc.user.lastName}`,
+    specialty: doc.specialization,
+    experience: doc.yearsOfExperience,
+    location: 'City Center',
+    rating: 4.8,
+    totalReviews: 120,
+    image: PLACEHOLDER_IMAGES[index % PLACEHOLDER_IMAGES.length],
+    hospital: doc.hospitalAffiliation || "Private Clinic",
+    consultationFee: doc.consultationFee,
+  }));
+};
+
+function DoctorSearch() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const carouselRef = useRef<HTMLDivElement>(null);
-
-  // --- FETCH DATA ---
-  useEffect(() => {
-    const fetchDoctors = async () => {
-      try {
-        const response = await axios.get("http://localhost:4000/api/users/doctors");
-        
-        // Map Backend Data -> UI Data
-        const mappedDoctors: DoctorType[] = response.data.map((doc: any, index: number) => ({
-          id: doc.id.toString(),
-          name: `Dr. ${doc.user.firstName} ${doc.user.lastName}`,
-          specialty: doc.specialization, // "Cardiologist"
-          experience: doc.yearsOfExperience, // 12
-          location: 'City Center', 
-          rating: 4.8, 
-          totalReviews: 120, 
-          image: PLACEHOLDER_IMAGES[index % PLACEHOLDER_IMAGES.length],
-          hospital: doc.hospitalAffiliation || "Private Clinic", // "City Heart Hospital"
-          consultationFee: doc.consultationFee, // 1500
-        }));
-
-        setDoctors(mappedDoctors);
-        setLoading(false);
-      } catch (err) {
-        console.error("Error fetching doctors:", err);
-        setError("Failed to load professionals.");
-        setLoading(false);
-      }
-    };
-
-    fetchDoctors();
-  }, []);
-
   const doctorsPerView = 4;
+
+  // --- REACT QUERY ---
+  const { data: doctors = [], isLoading, isError } = useQuery({
+    queryKey: ['top-doctors'],
+    queryFn: fetchDoctors,
+    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
+  });
+
   const maxIndex = Math.max(0, doctors.length - doctorsPerView);
 
   const scrollCarousel = (direction: 'left' | 'right') => {
@@ -87,18 +82,56 @@ function DoctorSearch() {
     console.log('Viewing profile for doctor:', doctorId);
   };
 
-  if (loading) {
+  // --- LOADING STATE (SKELETON CAROUSEL) ---
+  if (isLoading) {
     return (
-      <section className="py-20 px-4 bg-white flex justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      <section className="py-20 px-4 bg-white">
+        <div className="container mx-auto max-w-7xl">
+          <Skeleton className="h-10 w-96 mb-10 bg-slate-200" />
+          
+          <div className="flex gap-6 overflow-hidden">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex-shrink-0 w-full sm:w-1/2 lg:w-1/4">
+                <div className="bg-[#F8FAFC] rounded-2xl border border-gray-100 h-full flex flex-col p-0 overflow-hidden">
+                  <div className="p-3 pb-0">
+                    <Skeleton className="h-56 w-full rounded-xl bg-slate-200" />
+                  </div>
+                  <div className="p-5 pt-4 space-y-4 flex-grow">
+                    <div className="space-y-2">
+                      <Skeleton className="h-6 w-3/4 bg-slate-200" />
+                      <Skeleton className="h-4 w-1/2 bg-slate-200" />
+                    </div>
+                    <Skeleton className="h-4 w-2/3 bg-slate-200" />
+                    <div className="flex gap-2">
+                      <Skeleton className="h-6 w-16 bg-slate-200" />
+                      <Skeleton className="h-6 w-16 bg-slate-200" />
+                    </div>
+                    <Skeleton className="h-10 w-full rounded-lg bg-slate-200 mt-auto" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
     );
   }
 
-  if (error || doctors.length === 0) {
-    return null; 
+  // --- ERROR STATE ---
+  if (isError) {
+    return (
+      <section className="py-20 px-4 bg-white flex justify-center items-center">
+         <div className="text-center text-red-500 flex flex-col items-center gap-2">
+           <AlertCircle className="h-8 w-8" />
+           <p>Failed to load professionals.</p>
+         </div>
+      </section>
+    );
   }
 
+  if (doctors.length === 0) return null;
+
+  // --- MAIN RENDER ---
   return (
     <section className="py-20 px-4 bg-white">
       <div className="container mx-auto max-w-7xl">
@@ -188,8 +221,8 @@ function DoctorSearch() {
                 onClick={() => scrollCarousel("left")}
                 disabled={currentIndex === 0}
                 className={`w-10 h-10 rounded-full flex items-center justify-center border transition ${currentIndex === 0
-                    ? "border-gray-200 text-gray-300"
-                    : "border-gray-300 hover:bg-gray-100"
+                  ? "border-gray-200 text-gray-300"
+                  : "border-gray-300 hover:bg-gray-100"
                   }`}
               >
                 <ChevronLeft />
@@ -213,8 +246,8 @@ function DoctorSearch() {
                       }
                     }}
                     className={`w-3 h-3 rounded-full transition ${Math.floor(currentIndex) === index
-                        ? "bg-[#0A6EFF]"
-                        : "bg-gray-300"
+                      ? "bg-[#0A6EFF]"
+                      : "bg-gray-300"
                       }`}
                   />
                 ))}
@@ -224,8 +257,8 @@ function DoctorSearch() {
                 onClick={() => scrollCarousel("right")}
                 disabled={currentIndex >= maxIndex}
                 className={`w-10 h-10 rounded-full flex items-center justify-center border transition ${currentIndex >= maxIndex
-                    ? "border-gray-200 text-gray-300"
-                    : "border-gray-300 hover:bg-gray-100"
+                  ? "border-gray-200 text-gray-300"
+                  : "border-gray-300 hover:bg-gray-100"
                   }`}
               >
                 <ChevronRight />
