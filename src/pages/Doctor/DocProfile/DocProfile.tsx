@@ -5,16 +5,16 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { useState, useEffect, ChangeEvent, FormEvent } from "react";
-import axios from "axios";
+import { useState, useEffect, type ChangeEvent, type FormEvent } from "react";
+import api from "@/lib/api";
 import { Loader2 } from "lucide-react";
 
-// Define the shape of the profile data
 interface DoctorProfileData {
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
+  userUniqueId: string;
   specialization: string;
   licenseNumber: string;
   hospitalAffiliation: string;
@@ -32,6 +32,7 @@ function DocProfile() {
     lastName: "",
     email: "",
     phone: "",
+    userUniqueId: "",
     specialization: "",
     licenseNumber: "",
     hospitalAffiliation: "",
@@ -53,11 +54,7 @@ function DocProfile() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const token = localStorage.getItem("token");
-        // Assuming there is a GET endpoint to retrieve the current profile
-        const response = await axios.get("http://localhost:4000/api/auth/profile", {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const response = await api.get("/api/auth/profile");
 
         const user = response.data.user || {};
         const doctor = response.data.doctor || {};
@@ -67,6 +64,7 @@ function DocProfile() {
           lastName: user.lastName || "",
           email: user.email || "",
           phone: user.phoneNumber || "",
+          userUniqueId: response.data.userUniqueId || "",
           specialization: doctor.specialization || "",
           licenseNumber: doctor.licenseNumber || "",
           hospitalAffiliation: doctor.hospitalAffiliation || "",
@@ -102,10 +100,7 @@ function DocProfile() {
   const handleProfileUpdate = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem("token");
-      await axios.patch("http://localhost:4000/api/profile/update", formData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.patch("/api/profile/update", formData);
 
       toast.success("Profile Updated", {
         description: "Your profile information has been updated successfully.",
@@ -125,12 +120,9 @@ function DocProfile() {
     }
 
     try {
-      const token = localStorage.getItem("token");
-      await axios.post("http://localhost:4000/api/users/change-password", {
+      await api.post("/api/users/change-password", {
         oldPassword: passwords.currentPassword,
         newPassword: passwords.newPassword
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       });
 
       toast.success("Password Updated", {
@@ -154,9 +146,19 @@ function DocProfile() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Doctor Profile</h1>
-        <p className="text-gray-600 mt-1">View and update your professional information</p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Doctor Profile</h1>
+          <p className="text-gray-600 mt-1">View and update your professional information</p>
+        </div>
+        {formData.userUniqueId && (
+          <div className="mt-4 md:mt-0 flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-lg border border-blue-100">
+            <div className="flex flex-col">
+              <span className="text-xs text-blue-600 font-semibold uppercase">Doctor ID</span>
+              <span className="font-mono font-bold text-blue-900">{formData.userUniqueId}</span>
+            </div>
+          </div>
+        )}
       </div>
 
       <Tabs defaultValue="personal" className="w-full">

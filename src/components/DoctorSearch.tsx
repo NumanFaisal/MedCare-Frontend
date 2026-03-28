@@ -1,10 +1,10 @@
 import { useState, useRef } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
+import api from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { 
   ChevronLeft, ChevronRight, ArrowRight, MapPin, 
-  Clock, IndianRupee, Stethoscope, AlertCircle 
+  Clock, IndianRupee, Stethoscope, AlertCircle, Star 
 } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -30,17 +30,17 @@ const PLACEHOLDER_IMAGES = [
 
 // --- API FETCH FUNCTION ---
 const fetchDoctors = async (): Promise<DoctorType[]> => {
-  const response = await axios.get("http://localhost:4000/api/users/doctors");
+  const response = await api.get("/api/users/doctors");
   
-  // Map Backend Data -> UI Data
+  // Map Backend Data -> UI Data (ALL REAL — no hardcoded values)
   return response.data.map((doc: any, index: number) => ({
     id: doc.id.toString(),
     name: `Dr. ${doc.user.firstName} ${doc.user.lastName}`,
     specialty: doc.specialization,
     experience: doc.yearsOfExperience,
-    location: 'City Center',
-    rating: 4.8,
-    totalReviews: 120,
+    location: doc.hospitalAffiliation || "Private Clinic",
+    rating: doc.averageRating || 0,
+    totalReviews: doc.totalReviews || 0,
     image: PLACEHOLDER_IMAGES[index % PLACEHOLDER_IMAGES.length],
     hospital: doc.hospitalAffiliation || "Private Clinic",
     consultationFee: doc.consultationFee,
@@ -168,7 +168,7 @@ function DoctorSearch() {
                   <div className="flex flex-col px-5 pb-5 pt-4 flex-grow">
                     
                     {/* Name & Specialty */}
-                    <div className="mb-3">
+                    <div className="mb-2">
                       <h3 className="font-bold text-gray-900 text-lg truncate">
                         {doctor.name}
                       </h3>
@@ -176,6 +176,17 @@ function DoctorSearch() {
                         <Stethoscope className="h-3 w-3" />
                         {doctor.specialty}
                       </div>
+                    </div>
+
+                    {/* Rating */}
+                    <div className="flex items-center gap-1.5 mb-3">
+                      <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+                      <span className="text-sm font-bold text-gray-800">
+                        {doctor.rating > 0 ? doctor.rating.toFixed(1) : 'New'}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        ({doctor.totalReviews} {doctor.totalReviews === 1 ? 'review' : 'reviews'})
+                      </span>
                     </div>
 
                     {/* Hospital & Location */}

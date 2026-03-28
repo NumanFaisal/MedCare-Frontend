@@ -4,26 +4,82 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
+import { useState, useEffect } from "react";
+import api from "@/lib/api";
+import { Loader2, ShieldCheck } from "lucide-react";
 
+
+interface ShopProfileData {
+    shopName: string;
+    email: string;
+    phone: string;
+    userUniqueId: string;
+    address: string;
+    city: string;
+    state: string;
+    pincode: string;
+    licenseNumber: string;
+    operatingHours: string;
+    ownerName: string;
+}
 
 function MedProfile () {
+    const [loading, setLoading] = useState(true);
+    const [formData, setFormData] = useState<ShopProfileData>({
+        shopName: "",
+        email: "",
+        phone: "",
+        userUniqueId: "",
+        address: "",
+        city: "",
+        state: "",
+        pincode: "",
+        licenseNumber: "",
+        operatingHours: "",
+        ownerName: "",
+    });
 
-    //Sample medical shop data
-    const shop = {
-        id: "MS123456",
-        name: "City Pharamcy",
-        email: "thor.citypyharmacy@gmail.com",
-        phone: "995289****",
-        address: "Road no 14",
-        city: "Jamshedpur",
-        state: "Jharkhand",
-        pincode: "832110",
-        licenseNumber: "PL78901234",
-        licenseExpiry: "2026-12-31",
-        operatingHours: "Mon-Sat: 8:00 AM - 9:00 PM, Sun: 10:00 AM - 6:00 PM",
-        ownerName: "Thor Kumar",
-        established: "2010"
+    const [passwords, setPasswords] = useState({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+    });
+
+    // Fetch real profile data from API
+    useEffect(() => {
+        const fetchProfile = async () => {
+            try {
+                const response = await api.get("/api/auth/profile");
+                const data = response.data;
+                const shop = data.medicalShop || {};
+
+                setFormData({
+                    shopName: shop.shopName || "",
+                    email: data.email || "",
+                    phone: shop.phoneNumber || data.phoneNumber || "",
+                    userUniqueId: data.userUniqueId || "",
+                    address: shop.location || "",
+                    city: "",
+                    state: "",
+                    pincode: "",
+                    licenseNumber: shop.licenseNumber || "",
+                    operatingHours: "",
+                    ownerName: `${data.firstName || ""} ${data.lastName || ""}`.trim(),
+                });
+            } catch (error) {
+                console.error("Error fetching profile:", error);
+                toast.error("Failed to load profile data.");
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchProfile();
+    }, []);
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { id, value } = e.target;
+        setFormData(prev => ({ ...prev, [id]: value }));
     };
 
     const handleProfileUpdate = (e: React.FormEvent<HTMLFormElement>) => {
@@ -40,13 +96,27 @@ function MedProfile () {
         });
     };
 
+    if (loading) {
+        return <div className="flex h-[50vh] items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
+    }
+
     return (
         <div>
-            <Toaster />
             <div className="space-y-6">
-                <div>
-                    <h1 className="text-3xl font-bold">Shop Profile</h1>
-                    <p className="text-gray-600 mt-1">View and update your medical shop information</p>
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+                    <div>
+                        <h1 className="text-3xl font-bold">Shop Profile</h1>
+                        <p className="text-gray-600 mt-1">View and update your medical shop information</p>
+                    </div>
+                    {formData.userUniqueId && (
+                        <div className="mt-4 md:mt-0 flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-lg border border-blue-100">
+                            <ShieldCheck className="h-5 w-5 text-blue-600" />
+                            <div className="flex flex-col">
+                                <span className="text-xs text-blue-600 font-semibold uppercase">Shop ID</span>
+                                <span className="font-mono font-bold text-blue-900">{formData.userUniqueId}</span>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
 
@@ -69,53 +139,49 @@ function MedProfile () {
                                 <CardContent className="space-y-6">
                                     <div className="space-y-2">
                                         <Label htmlFor="shopName">Shop Name</Label>
-                                        <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10"  id="shopName" defaultValue={shop.name} />
+                                        <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="shopName" value={formData.shopName} onChange={handleInputChange} />
                                     </div>
                                     
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="space-y-2">
                                             <Label htmlFor="email">Email</Label>
-                                            <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="email" type="email" defaultValue={shop.email} />
+                                            <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="email" type="email" value={formData.email} onChange={handleInputChange} />
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="phone">Phone Number</Label>
-                                            <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="phone" defaultValue={shop.phone} />
+                                            <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="phone" value={formData.phone} onChange={handleInputChange} />
                                         </div>
                                     </div>
                                     
                                     <div className="space-y-2">
                                         <Label htmlFor="address">Street Address</Label>
-                                        <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="address" defaultValue={shop.address} />
+                                        <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="address" value={formData.address} onChange={handleInputChange} />
                                     </div>
                                     
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                         <div className="space-y-2">
                                             <Label htmlFor="city">City</Label>
-                                            <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="city" defaultValue={shop.city} />
+                                            <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="city" value={formData.city} onChange={handleInputChange} />
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="state">State</Label>
-                                            <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="state" defaultValue={shop.state} />
+                                            <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="state" value={formData.state} onChange={handleInputChange} />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label htmlFor="zipCode">Zip Code</Label>
-                                            <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="zipCode" defaultValue={shop.pincode} />
+                                            <Label htmlFor="pincode">Zip Code</Label>
+                                            <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="pincode" value={formData.pincode} onChange={handleInputChange} />
                                         </div>
                                     </div>
                                     
                                     <div className="space-y-2">
                                         <Label htmlFor="operatingHours">Operating Hours</Label>
-                                        <Textarea className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="operatingHours" defaultValue={shop.operatingHours} rows={3} />
+                                        <Textarea className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="operatingHours" value={formData.operatingHours} onChange={handleInputChange} rows={3} />
                                     </div>
                                     
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="space-y-2">
                                             <Label htmlFor="ownerName">Owner/Manager Name</Label>
-                                            <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="ownerName" defaultValue={shop.ownerName} />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="established">Year Established</Label>
-                                            <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="established" defaultValue={shop.established} />
+                                            <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="ownerName" value={formData.ownerName} onChange={handleInputChange} />
                                         </div>
                                     </div>
                                 </CardContent>
@@ -129,92 +195,61 @@ function MedProfile () {
                     <TabsContent value="license" className="mt-6">
                         <Card>
                             <CardHeader>
-                                <CardTitle>License Details</CardTitle>
+                                <CardTitle>License Information</CardTitle>
                                 <CardDescription>
-                                Update your pharmacy license information
+                                    View your pharmacy license details
                                 </CardDescription>
                             </CardHeader>
-                            <form onSubmit={handleProfileUpdate}>
-                                <CardContent className="space-y-6">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="licenseNumber">License Number</Label>
-                                            <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="licenseNumber" defaultValue={shop.licenseNumber} />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="licenseExpiry">License Expiry Date</Label>
-                                            <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="licenseExpiry" type="date" defaultValue={shop.licenseExpiry} />
-                                        </div>
-                                    </div>
-                                    
+                            <CardContent className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
-                                        <Label htmlFor="licenseDocument">Upload License Document</Label>
-                                        <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="licenseDocument" type="file" />
-                                        <p className="text-sm text-gray-500 mt-1">Upload a scanned copy of your pharmacy license (PDF or image file)</p>
+                                        <Label>License Number</Label>
+                                        <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" value={formData.licenseNumber} readOnly />
                                     </div>
-                                    
-                                    <div className="bg-primary-light/30 p-4 rounded-lg">
-                                        <h4 className="font-medium mb-2">License Requirements</h4>
-                                        <ul className="space-y-1 text-sm list-disc list-inside">
-                                            <li>Valid pharmacy license issued by state board</li>
-                                            <li>License must be current and non-expired</li>
-                                            <li>License holder name must match shop owner/manager</li>
-                                            <li>Address on license must match shop address</li>
-                                        </ul>
+                                    <div className="space-y-2">
+                                        <Label>Shop ID</Label>
+                                        <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono" value={formData.userUniqueId} readOnly />
                                     </div>
-                                </CardContent>
-                                <CardFooter className="flex justify-end">
-                                    <Button className="border bg-white text-primary hover:bg-primary hover:text-white mt-4 " type="submit">Update License Information</Button>
-                                </CardFooter>
-                            </form>
+                                </div>
+                            </CardContent>
                         </Card>
                     </TabsContent>
-                    
+
                     <TabsContent value="security" className="mt-6">
                         <Card>
                             <CardHeader>
                                 <CardTitle>Account Security</CardTitle>
                                 <CardDescription>
-                                    Update your password and security preferences
+                                    Update your password to keep your account secure
                                 </CardDescription>
                             </CardHeader>
-                                <form onSubmit={handlePasswordUpdate}>
-                                    <CardContent className="space-y-6">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="currentPassword">Current Password</Label>
-                                            <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="currentPassword" type="password" />
-                                        </div>
-                                        
+                            <form onSubmit={handlePasswordUpdate}>
+                                <CardContent className="space-y-6">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="currentPassword">Current Password</Label>
+                                        <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="currentPassword" type="password" value={passwords.currentPassword} onChange={(e) => setPasswords(prev => ({ ...prev, currentPassword: e.target.value }))} />
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="space-y-2">
                                             <Label htmlFor="newPassword">New Password</Label>
-                                            <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="newPassword" type="password" />
+                                            <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="newPassword" type="password" value={passwords.newPassword} onChange={(e) => setPasswords(prev => ({ ...prev, newPassword: e.target.value }))} />
                                         </div>
-                                        
                                         <div className="space-y-2">
-                                            <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                                            <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="confirmPassword" type="password" />
+                                            <Label htmlFor="confirmPassword">Confirm Password</Label>
+                                            <Input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10" id="confirmPassword" type="password" value={passwords.confirmPassword} onChange={(e) => setPasswords(prev => ({ ...prev, confirmPassword: e.target.value }))} />
                                         </div>
-                                        
-                                        <div className="bg-primary-light/30 p-4 rounded-lg">
-                                            <h4 className="font-medium mb-2">Password Requirements</h4>
-                                            <ul className="space-y-1 text-sm list-disc list-inside">
-                                                <li>Minimum 8 characters</li>
-                                                <li>At least one uppercase letter</li>
-                                                <li>At least one number</li>
-                                                <li>At least one special character (!@#$%^&*)</li>
-                                            </ul>
-                                        </div>
-                                    </CardContent>
-                                    <CardFooter className="flex justify-end">
-                                        <Button className="border bg-white text-primary hover:bg-primary hover:text-white mt-4 " type="submit">Update Password</Button>
-                                    </CardFooter>
-                                </form>
-                            </Card>
-                        </TabsContent>
-                    </Tabs>
+                                    </div>
+                                </CardContent>
+                                <CardFooter className="flex justify-end">
+                                    <Button className="border bg-white text-primary hover:bg-primary hover:text-white mt-4" type="submit">Update Password</Button>
+                                </CardFooter>
+                            </form>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
             </div>
         </div>
-    )
+    );
 }
 
 export default MedProfile;

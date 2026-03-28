@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "@/lib/api";
 import { toast } from "sonner"; // Assuming sonner, or use your toast library
 import { Eye, EyeOff } from "lucide-react"; // Import icons
 import AuthLayout from "@/components/layouts/AuthLayout";
@@ -37,8 +37,8 @@ const Login: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post("http://localhost:4000/api/auth/login", { 
-        email, 
+      const response = await api.post("/api/auth/login", {
+        email,
         password,
         // role 
       });

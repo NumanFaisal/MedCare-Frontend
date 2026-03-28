@@ -1,10 +1,10 @@
 import { useState } from "react";
-import axios from "axios";
+import api from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
-  FileText, Calendar, Bell, ChevronRight, Activity, Pill, Bot, 
+  FileText, Calendar, Bell, ChevronRight, Activity, Pill, 
   User, Clock, MapPin, ClipboardList, AlertCircle, CheckCircle2 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -52,10 +52,7 @@ interface Prescription {
 
 // --- API FUNCTIONS ---
 const fetchAppointments = async (): Promise<Appointment[]> => {
-  const token = localStorage.getItem("token");
-  const { data } = await axios.get("http://localhost:4000/api/appointments/my-appointments", {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  const { data } = await api.get("/api/appointments/my-appointments");
 
   return data.map((apt: any) => ({
     id: apt.id,
@@ -75,12 +72,12 @@ const fetchAppointments = async (): Promise<Appointment[]> => {
 };
 
 const fetchPrescriptions = async (): Promise<Prescription[]> => {
-  const token = localStorage.getItem("token");
-  const { data } = await axios.get("http://localhost:4000/api/prescriptions/patient/me", {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  const response = await api.get("/api/prescriptions/patient/me");
 
-  return data.map((rx: any) => {
+  // Backend returns paginated { data: [...], meta: {...} }
+  const prescriptions = response.data.data || response.data;
+
+  return prescriptions.map((rx: any) => {
     const validUntil = new Date(rx.validUntilDate);
     const isExpired = new Date() > validUntil;
 
@@ -227,27 +224,27 @@ const UserDashboard = () => {
         <p className="text-gray-600 mt-1">Welcome back, {userName}</p>
       </div>
 
-      {/* AI Health Card */}
-      <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+      {/* Analysis Report Card */}
+      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
         <CardHeader className="pb-2">
-          <CardTitle className="text-3xl flex items-center gap-2">
-            <Bot className="h-5 w-5 text-blue-600" />
-            AI Health Assistant
+          <CardTitle className="text-2xl flex items-center gap-2">
+            <Activity className="h-6 w-6 text-blue-600" />
+            Health Analysis Report
           </CardTitle>
           <CardDescription className="text-gray-600">
-            Get instant health insights and reduce no-shows with AI-powered assistance
+            Generate and view comprehensive analysis reports of your health data from the past 6 to 12 months.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-3 ">
-            <Button asChild className="bg-blue-700 text-white" >
-              <NavLink to={"/user/ai-health"} >
-                Analyze Symptoms
+            <Button asChild className="bg-blue-700 hover:bg-blue-800 text-white" >
+              <NavLink to={"/user/analysis-report?months=6"} >
+                Generate 6-Month Report
               </NavLink>
             </Button>
-            <Button asChild variant={"outline"} className="border-none bg-white">
-              <NavLink to={"/user/ai-health"}>
-                Get Medicine Suggestions
+            <Button asChild variant={"outline"} className="border-blue-200 bg-white text-blue-700 hover:bg-blue-50">
+              <NavLink to={"/user/analysis-report?months=12"}>
+                Generate 1-Year Report
               </NavLink>
             </Button>
           </div>
@@ -346,7 +343,7 @@ const UserDashboard = () => {
           <CardContent>
             {recentPrescriptions.length > 0 ? (
               <div className="space-y-4">
-                {recentPrescriptions.map(rx => (
+                {recentPrescriptions.slice(0, 3).map(rx => (
                   <div key={rx.id} className="flex items-center justify-between border-b pb-3 last:border-0">
                     <div>
                       <div className="flex items-center">
@@ -357,9 +354,23 @@ const UserDashboard = () => {
                         {rx.prescribedMedications[0]?.medication}
                         {rx.prescribedMedications.length > 1 && ` + ${rx.prescribedMedications.length - 1} more`}
                       </p>
-                      <div className="flex items-center text-xs text-gray-500 mt-1">
-                        <Calendar className="h-3 w-3 mr-1" />
-                        {rx.date} by {rx.doctor.name}
+                      <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                        <span className="flex items-center">
+                          <Calendar className="h-3 w-3 mr-1" />
+                          {rx.date}
+                        </span>
+                        <span>by {rx.doctor.name}</span>
+                        {rx.isExpired ? (
+                          <span className="text-red-500 font-medium flex items-center">
+                            <AlertCircle className="h-3 w-3 mr-0.5" />
+                            Expired
+                          </span>
+                        ) : (
+                          <span className="text-green-600 font-medium flex items-center">
+                            <CheckCircle2 className="h-3 w-3 mr-0.5" />
+                            Active
+                          </span>
+                        )}
                       </div>
                     </div>
                     <Button size="sm" variant="outline" className="border-gray-300 border text-gray-700 hover:bg-[#FDE1D3]" onClick={() => handleViewPrescriptionDetails(rx)}>
@@ -372,7 +383,8 @@ const UserDashboard = () => {
             ) : (
               <div className="text-center py-6">
                 <FileText className="mx-auto h-12 w-12 text-gray-300 mb-3" />
-                <p className="text-gray-500 text-sm">No recent prescriptions</p>
+                <p className="text-gray-500 text-sm">No prescriptions yet</p>
+                <p className="text-xs text-gray-400 mt-1">Your prescriptions from doctor visits will appear here</p>
               </div>
             )}
           </CardContent>

@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom"; 
 import { Button } from "@/components/ui/button"; 
 import { toast } from "sonner";
-import { Book, FileText, Home, LogOut, Menu, RedoDot, Rocket, ShoppingBag, User, UserCircle, X } from "lucide-react";
+import { Activity, Book, Calendar, FileText, Home, LogOut, Menu, ShoppingBag, User, UserCircle, X } from "lucide-react";
 import { useState } from "react";
 
 type RoleType = 'USER' | 'DOCTOR' | 'MEDICAL';
@@ -34,11 +34,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role }) => 
         switch (role) {
             case 'USER':
                 return [
-                    // 2. Add 'end: true' to the Dashboard links (the root paths)
                     { icon: Home, label: 'Dashboard', href: '/user', end: true },
                     { icon: Book, label: 'Book Appointment', href: '/user/appointments/book-new' },
+                    { icon: Calendar, label: 'My Appointments', href: '/user/appointments', end: true },
                     { icon: FileText, label: 'Prescriptions', href: '/user/prescriptions' },
-                    { icon: Rocket, label: 'AI Health Assistant', href: '/user/ai-health' },
+                    { icon: Activity, label: 'Analysis Report', href: '/user/analysis-report' },
                     { icon: UserCircle, label: 'My Profile', href: '/user/profile' },
                 ];
             case 'DOCTOR':

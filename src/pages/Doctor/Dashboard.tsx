@@ -1,10 +1,10 @@
 import { useState } from "react";
-import axios from "axios";
+import api from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { NavLink } from "react-router-dom";
 import { 
   BarChart, Book, Calendar, ChevronRight, Clock, 
-  Heart, Users, Loader2 
+  Heart, Users 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,10 +46,7 @@ interface DashboardData {
 
 // --- API FETCH FUNCTION ---
 const fetchDashboardData = async (): Promise<DashboardData> => {
-  const token = localStorage.getItem("token");
-  const response = await axios.get("http://localhost:4000/api/appointments/doctor/my-appointments", {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  const response = await api.get("/api/appointments/doctor/my-appointments");
 
   const rawAppointments = response.data.appointments;
   const todayStr = new Date().toLocaleDateString();
@@ -372,9 +369,9 @@ const DocDashboard = () => {
               </NavLink>
             </Button>
             <Button className="h-auto py-4 flex flex-col " asChild>
-              <NavLink to={"/schedule"} className="text-white">
+              <NavLink to={"/doctor/availability"} className="text-white">
                 <Calendar className="mb-2 text-white " />
-                Schedule
+                Availability
               </NavLink>
             </Button>
           </div>

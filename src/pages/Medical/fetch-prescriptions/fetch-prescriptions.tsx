@@ -1,5 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
+import api from "@/lib/api";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CheckCircle, FileText, Package, Search, AlertCircle } from "lucide-react";
@@ -33,19 +33,17 @@ interface PrescriptionData {
 
 // --- API FUNCTION ---
 const searchPrescriptions = async ({ patientId, prescriptionId }: { patientId: string, prescriptionId: string }) => {
-  const token = localStorage.getItem("token");
-  const headers = { Authorization: `Bearer ${token}` };
   let response;
   let data;
 
   // Scenario A: Search by Prescription ID (Single View)
   if (prescriptionId) {
-    response = await axios.get(`http://localhost:4000/api/prescriptions/view/${prescriptionId}`, { headers });
+    response = await api.get(`/api/prescriptions/view/${prescriptionId}`);
     data = response.data;
   } 
   // Scenario B: Search by Patient ID (History)
   else if (patientId) {
-    response = await axios.get(`http://localhost:4000/api/prescriptions/history/${patientId}`, { headers });
+    response = await api.get(`/api/prescriptions/history/${patientId}`);
     // If history returns an array, we take the latest one for this UI view
     // (Since the current UI only supports showing one detailed card)
     if (Array.isArray(response.data) && response.data.length > 0) {

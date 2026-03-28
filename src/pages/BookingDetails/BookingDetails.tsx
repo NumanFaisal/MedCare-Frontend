@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "@/lib/api";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   Calendar,
   Clock,
@@ -12,7 +13,8 @@ import {
   ShieldCheck,
   CheckCircle2,
   User,
-  AlertCircle
+  AlertCircle,
+  MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -20,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton"; // Ensure you have this component
+import { Skeleton } from "@/components/ui/skeleton";
 
 // --- TYPES ---
 interface DoctorData {
@@ -30,10 +32,28 @@ interface DoctorData {
   clinic: string;
   experience: number;
   consultationFee: number;
-  rating: number;
-  patients: string;
   about: string;
   photo: string;
+}
+
+interface TimeSlot {
+  time: string;
+  dateTime: string;
+  available: boolean;
+}
+
+interface ReviewData {
+  id: number;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  reviewer: { firstName: string; lastName: string };
+}
+
+interface ReviewsResponse {
+  reviews: ReviewData[];
+  averageRating: string;
+  totalReviews: number;
 }
 
 interface BookingPayload {
@@ -48,14 +68,8 @@ const PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1612349317150-e413f
 // --- API FUNCTIONS ---
 const fetchDoctorDetails = async (id: string | undefined): Promise<DoctorData> => {
   if (!id) throw new Error("No Doctor ID provided");
-
-  const token = localStorage.getItem("token");
-  const response = await axios.get(`http://localhost:4000/api/users/doctors/${id}`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-
+  const response = await api.get(`/api/users/doctors/${id}`);
   const data = response.data;
-
   return {
     id: data.id,
     name: `Dr. ${data.user.firstName} ${data.user.lastName}`,
@@ -63,20 +77,44 @@ const fetchDoctorDetails = async (id: string | undefined): Promise<DoctorData> =
     clinic: data.hospitalAffiliation || "Private Clinic",
     experience: data.yearsOfExperience,
     consultationFee: data.consultationFee,
-    rating: 4.8,
-    patients: "500+",
     about: data.professionalBio || "Experienced specialist committed to patient care.",
     photo: PLACEHOLDER_IMAGE
   };
 };
 
-const bookAppointment = async (payload: BookingPayload) => {
-  const token = localStorage.getItem("token");
-  const response = await axios.post("http://localhost:4000/api/appointments/book", payload, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+const fetchDoctorReviews = async (id: string | undefined): Promise<ReviewsResponse> => {
+  if (!id) return { reviews: [], averageRating: "0", totalReviews: 0 };
+  const response = await api.get(`/api/reviews/doctor/${id}`);
+  return response.data.data;
+};
+
+const fetchSlots = async (doctorId: string | undefined, date: string): Promise<TimeSlot[]> => {
+  if (!doctorId || !date) return [];
+  const response = await api.get(`/api/appointments/slots?doctorId=${doctorId}&date=${date}`);
   return response.data;
 };
+
+const bookAppointment = async (payload: BookingPayload) => {
+  const response = await api.post("/api/appointments/book", payload);
+  return response.data;
+};
+
+// Star rating component
+function StarRating({ rating, size = 16 }: { rating: number; size?: number }) {
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map(i => (
+        <Star
+          key={i}
+          className={`transition-colors`}
+          style={{ width: size, height: size }}
+          fill={i <= rating ? "#FBBF24" : "transparent"}
+          stroke={i <= rating ? "#FBBF24" : "#D1D5DB"}
+        />
+      ))}
+    </div>
+  );
+}
 
 // --- COMPONENT ---
 export default function BookingDetails() {
@@ -85,32 +123,56 @@ export default function BookingDetails() {
 
   // Form State
   const [selectedDate, setSelectedDate] = useState<string>("");
-  const [selectedTime, setSelectedTime] = useState<string>("");
+  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [patientName, setPatientName] = useState("");
   const [patientPhone, setPatientPhone] = useState("");
   const [symptoms, setSymptoms] = useState("");
 
+  // Pre-fill patient info from profile
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const res = await api.get("/api/auth/profile");
+        setPatientName(`${res.data.firstName || ""} ${res.data.lastName || ""}`.trim());
+        setPatientPhone(res.data.phoneNumber || "");
+      } catch { /* non-critical */ }
+    };
+    loadProfile();
+  }, []);
+
   // --- REACT QUERY ---
-  const {
-    data: doctor,
-    isLoading,
-    isError,
-    error
-  } = useQuery({
+  const { data: doctor, isLoading, isError, error } = useQuery({
     queryKey: ["doctor", id],
     queryFn: () => fetchDoctorDetails(id),
     enabled: !!id,
     staleTime: 1000 * 60 * 5,
   });
 
+  const { data: reviewsData } = useQuery({
+    queryKey: ["doctor-reviews", id],
+    queryFn: () => fetchDoctorReviews(id),
+    enabled: !!id,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const { data: slots = [], isLoading: slotsLoading } = useQuery({
+    queryKey: ["doctor-slots", id, selectedDate],
+    queryFn: () => fetchSlots(id, selectedDate),
+    enabled: !!id && !!selectedDate,
+    staleTime: 1000 * 60 * 1, // Re-fetch frequently
+  });
+
   const bookingMutation = useMutation({
     mutationFn: bookAppointment,
     onSuccess: () => {
+      toast.success("Appointment booked successfully!", {
+        description: `Your appointment with ${doctor?.name} has been confirmed.`,
+      });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     },
-    onError: (err) => {
-      console.error("Booking failed:", err);
-      // Ideally use a toast here
+    onError: (err: any) => {
+      const message = err?.response?.data?.message || "Booking failed. Please try again.";
+      toast.error("Booking Failed", { description: message });
     }
   });
 
@@ -118,133 +180,50 @@ export default function BookingDetails() {
   const getUpcomingDates = () => {
     const dates = [];
     const today = new Date();
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 7; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
       dates.push({
         dayName: date.toLocaleDateString('en-US', { weekday: 'short' }),
         dayNumber: date.getDate(),
+        monthName: date.toLocaleDateString('en-US', { month: 'short' }),
         fullDate: date.toISOString().split('T')[0]
       });
     }
     return dates;
   };
 
-  const timeSlots = [
-    "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
-    "11:00 AM", "04:00 PM", "04:30 PM", "05:00 PM",
-    "05:30 PM", "06:00 PM"
-  ];
-
   const handleConfirmPayment = () => {
-    if (!doctor || !selectedDate || !selectedTime) return;
-    const appointmentDateTime = new Date(`${selectedDate} ${selectedTime}`).toISOString();
+    if (!doctor || !selectedSlot) return;
     bookingMutation.mutate({
       doctorId: doctor.id,
-      appointmentDate: appointmentDateTime,
+      appointmentDate: selectedSlot.dateTime,
       status: "PENDING",
       reason: symptoms
     });
   };
 
+  const avgRating = reviewsData?.averageRating ? parseFloat(reviewsData.averageRating) : 0;
+  const totalReviews = reviewsData?.totalReviews || 0;
+  const reviews = reviewsData?.reviews || [];
+
   // --- SKELETON LOADER ---
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-50/50 pb-20">
-        {/* Navbar Skeleton */}
         <div className="bg-white border-b sticky top-0 z-10 h-16">
           <div className="container mx-auto px-4 h-full flex items-center gap-4">
             <Skeleton className="h-8 w-20" />
             <Skeleton className="h-6 w-40" />
           </div>
         </div>
-
         <div className="container mx-auto px-4 py-8 grid lg:grid-cols-3 gap-8">
-          {/* Left Column Skeleton */}
           <div className="lg:col-span-1 space-y-6">
-            <Card>
-              <Skeleton className="aspect-[4/3] w-full rounded-t-lg" />
-              <CardContent className="pt-6 space-y-4">
-                <div className="flex justify-between">
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-4 w-20" />
-                </div>
-                <div className="space-y-3">
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-1/2" />
-                </div>
-                <Separator />
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-1/3 mb-2" />
-                  <Skeleton className="h-3 w-full" />
-                  <Skeleton className="h-3 w-full" />
-                  <Skeleton className="h-3 w-2/3" />
-                </div>
-              </CardContent>
-            </Card>
+            <Card><Skeleton className="aspect-[4/3] w-full rounded-t-lg" /><CardContent className="pt-6 space-y-4"><Skeleton className="h-4 w-20" /><Skeleton className="h-4 w-3/4" /></CardContent></Card>
           </div>
-
-          {/* Right Column Skeleton */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Schedule Skeleton */}
-            <Card>
-              <CardHeader><Skeleton className="h-6 w-40" /></CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <Skeleton className="h-4 w-16 mb-3" />
-                  <div className="flex gap-3 overflow-hidden">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <Skeleton key={i} className="h-[90px] w-[80px] rounded-xl shrink-0" />
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <Skeleton className="h-4 w-20 mb-3" />
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                      <Skeleton key={i} className="h-9 w-full rounded-lg" />
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Patient Form Skeleton */}
-            <Card>
-              <CardHeader><Skeleton className="h-6 w-32" /></CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-20" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-20 w-full" />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Bill Skeleton */}
-            <Card>
-              <CardContent className="pt-6 space-y-4">
-                <Skeleton className="h-6 w-32 mb-4" />
-                <div className="space-y-2">
-                  <div className="flex justify-between"><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-16" /></div>
-                  <div className="flex justify-between"><Skeleton className="h-4 w-40" /><Skeleton className="h-4 w-16" /></div>
-                </div>
-                <Separator />
-                <div className="flex justify-between"><Skeleton className="h-6 w-24" /><Skeleton className="h-6 w-20" /></div>
-              </CardContent>
-              <CardFooter>
-                <Skeleton className="h-14 w-full rounded-md" />
-              </CardFooter>
-            </Card>
+            <Card><CardContent className="pt-6 space-y-6"><Skeleton className="h-4 w-16 mb-3" /><div className="flex gap-3">{[1,2,3,4,5].map(i => <Skeleton key={i} className="h-[90px] w-[80px] rounded-xl shrink-0" />)}</div></CardContent></Card>
+            <Card><CardContent className="pt-6 space-y-4"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-20 w-full" /></CardContent></Card>
           </div>
         </div>
       </div>
@@ -276,14 +255,21 @@ export default function BookingDetails() {
             <div className="space-y-2 text-slate-600">
               <p>Doctor: <strong>{doctor.name}</strong></p>
               <p>Date: <strong>{selectedDate}</strong></p>
-              <p>Time: <strong>{selectedTime}</strong></p>
+              <p>Time: <strong>{selectedSlot?.time}</strong></p>
             </div>
-            <div className="pt-6">
+            <div className="pt-6 space-y-3">
               <Button
-                onClick={() => navigate('/user')}
+                onClick={() => navigate('/user/appointments')}
                 className="w-full bg-green-600 hover:bg-green-700 text-white"
               >
                 View My Appointments
+              </Button>
+              <Button
+                onClick={() => navigate('/user')}
+                variant="outline"
+                className="w-full"
+              >
+                Go to Dashboard
               </Button>
             </div>
           </CardContent>
@@ -310,15 +296,11 @@ export default function BookingDetails() {
 
       <div className="container mx-auto px-4 py-8 grid lg:grid-cols-3 gap-8">
 
-        {/* LEFT COLUMN: Doctor Details */}
+        {/* LEFT COLUMN: Doctor Details + Reviews */}
         <div className="lg:col-span-1 space-y-6">
           <Card className="overflow-hidden border-2 border-slate-100 shadow-sm">
             <div className="aspect-[4/3] w-full relative">
-              <img
-                src={doctor.photo}
-                alt={doctor.name}
-                className="w-full h-full object-cover"
-              />
+              <img src={doctor.photo} alt={doctor.name} className="w-full h-full object-cover" />
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 pt-12">
                 <h2 className="text-white text-xl font-bold">{doctor.name}</h2>
                 <p className="text-slate-200 text-sm">{doctor.specialization}</p>
@@ -328,8 +310,8 @@ export default function BookingDetails() {
               <div className="flex justify-between items-center text-sm">
                 <div className="flex items-center gap-1.5 text-slate-700">
                   <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  <span className="font-bold">{doctor.rating}</span>
-                  <span className="text-slate-400">({doctor.patients})</span>
+                  <span className="font-bold">{avgRating > 0 ? avgRating.toFixed(1) : 'New'}</span>
+                  <span className="text-slate-400">({totalReviews} reviews)</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-slate-700">
                   <ShieldCheck className="w-4 h-4 text-blue-500" />
@@ -346,16 +328,76 @@ export default function BookingDetails() {
                   <Clock className="w-4 h-4 mt-0.5 shrink-0" />
                   {doctor.experience} Years Experience
                 </div>
+                <div className="flex items-start gap-3 text-sm text-slate-600">
+                  <IndianRupee className="w-4 h-4 mt-0.5 shrink-0" />
+                  ₹{doctor.consultationFee} consultation
+                </div>
               </div>
 
               <Separator />
 
               <div>
                 <h3 className="font-semibold mb-2 text-sm">About Doctor</h3>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  {doctor.about}
-                </p>
+                <p className="text-xs text-slate-500 leading-relaxed">{doctor.about}</p>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* REVIEWS SECTION */}
+          <Card className="border-slate-100 shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-primary" />
+                Patient Reviews
+                {totalReviews > 0 && (
+                  <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-normal">
+                    {totalReviews}
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {reviews.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-6">No reviews yet. Be the first!</p>
+              ) : (
+                <>
+                  {/* Rating Summary */}
+                  <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+                    <div className="text-3xl font-bold text-slate-900">{avgRating.toFixed(1)}</div>
+                    <div>
+                      <StarRating rating={Math.round(avgRating)} />
+                      <p className="text-xs text-slate-500 mt-0.5">{totalReviews} reviews</p>
+                    </div>
+                  </div>
+
+                  {/* Individual Reviews */}
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                    {reviews.map((review) => (
+                      <div key={review.id} className="border-b border-slate-100 pb-3 last:border-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                              {review.reviewer.firstName[0]}
+                            </div>
+                            <span className="text-sm font-medium text-slate-800">
+                              {review.reviewer.firstName} {review.reviewer.lastName}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-slate-400">
+                            {new Date(review.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div className="ml-9">
+                          <StarRating rating={review.rating} size={12} />
+                          {review.comment && (
+                            <p className="text-xs text-slate-600 mt-1 leading-relaxed">{review.comment}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -379,7 +421,10 @@ export default function BookingDetails() {
                   {getUpcomingDates().map((item) => (
                     <button
                       key={item.fullDate}
-                      onClick={() => setSelectedDate(item.fullDate)}
+                      onClick={() => {
+                        setSelectedDate(item.fullDate);
+                        setSelectedSlot(null); // Reset slot when date changes
+                      }}
                       className={`min-w-[80px] h-[90px] rounded-xl flex flex-col items-center justify-center border-2 transition-all ${selectedDate === item.fullDate
                           ? 'border-primary bg-primary text-white shadow-md transform scale-105'
                           : 'border-slate-100 bg-white hover:border-slate-300 text-slate-600'
@@ -391,28 +436,45 @@ export default function BookingDetails() {
                       <span className="text-2xl font-bold">
                         {item.dayNumber}
                       </span>
+                      <span className={`text-[10px] ${selectedDate === item.fullDate ? 'text-blue-200' : 'text-slate-400'}`}>
+                        {item.monthName}
+                      </span>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Time Grid */}
+              {/* Time Slots — DYNAMIC from API */}
               <div>
-                <Label className="mb-3 block text-slate-600">Time Slot</Label>
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                  {timeSlots.map((time) => (
-                    <button
-                      key={time}
-                      onClick={() => setSelectedTime(time)}
-                      className={`py-2 px-1 text-xs font-medium rounded-lg border transition-all ${selectedTime === time
-                          ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary'
-                          : 'border-slate-200 text-slate-600 hover:border-slate-400'
-                        }`}
-                    >
-                      {time}
-                    </button>
-                  ))}
-                </div>
+                <Label className="mb-3 block text-slate-600">Available Time Slots</Label>
+                {!selectedDate ? (
+                  <p className="text-sm text-slate-400 py-4 text-center">Select a date to see available slots</p>
+                ) : slotsLoading ? (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                    {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-9 w-full rounded-lg" />)}
+                  </div>
+                ) : slots.length === 0 ? (
+                  <div className="text-center py-6 bg-orange-50 rounded-lg border border-orange-100">
+                    <Clock className="w-6 h-6 text-orange-400 mx-auto mb-2" />
+                    <p className="text-sm font-medium text-orange-700">No slots available on this date</p>
+                    <p className="text-xs text-orange-500 mt-1">Try selecting another date</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                    {slots.map((slot) => (
+                      <button
+                        key={slot.time}
+                        onClick={() => setSelectedSlot(slot)}
+                        className={`py-2.5 px-1 text-xs font-medium rounded-lg border transition-all ${selectedSlot?.time === slot.time
+                            ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary shadow-sm'
+                            : 'border-slate-200 text-slate-600 hover:border-primary/50 hover:bg-primary/5'
+                          }`}
+                      >
+                        {slot.time}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -489,11 +551,14 @@ export default function BookingDetails() {
               <Button
                 size="lg"
                 className="w-full text-base py-6 shadow-lg shadow-primary/20"
-                disabled={!selectedDate || !selectedTime || bookingMutation.isPending}
+                disabled={!selectedDate || !selectedSlot || bookingMutation.isPending}
                 onClick={handleConfirmPayment}
               >
                 {bookingMutation.isPending ? (
-                  <span className="flex items-center gap-2">Processing...</span>
+                  <span className="flex items-center gap-2">
+                    <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                    Processing...
+                  </span>
                 ) : (
                   <span className="flex items-center gap-2 text-white">
                     Pay & Confirm Booking

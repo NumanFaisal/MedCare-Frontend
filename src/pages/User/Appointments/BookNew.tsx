@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import {
@@ -21,7 +21,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Filter, MapPin, Clock, IndianRupee, AlertCircle } from "lucide-react";
+import {
+  Search,
+  Filter,
+  MapPin,
+  Clock,
+  IndianRupee,
+  AlertCircle,
+  Star
+} from "lucide-react";
 
 // --- TYPES ---
 interface Doctor {
@@ -33,6 +41,8 @@ interface Doctor {
   consultationFee: number;
   availability: string;
   photo: string;
+  averageRating: number;
+  totalReviews: number;
 }
 
 interface BackendDoctor {
@@ -42,6 +52,8 @@ interface BackendDoctor {
   yearsOfExperience: number;
   consultationFee: number;
   availabilitySchedule: any;
+  averageRating: number;
+  totalReviews: number;
   user: {
     firstName: string;
     lastName: string;
@@ -58,10 +70,7 @@ const PLACEHOLDER_IMAGES = [
 
 // --- API FUNCTION ---
 const fetchDoctors = async (): Promise<Doctor[]> => {
-  const token = localStorage.getItem("token");
-  const response = await axios.get<BackendDoctor[]>("http://localhost:4000/api/users/doctors", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const response = await api.get<BackendDoctor[]>("/api/users/doctors");
 
   return response.data.map((doc, index) => ({
     id: doc.id,
@@ -72,6 +81,8 @@ const fetchDoctors = async (): Promise<Doctor[]> => {
     consultationFee: doc.consultationFee,
     availability: doc.availabilitySchedule ? "Available Today" : "Check Availability",
     photo: PLACEHOLDER_IMAGES[index % PLACEHOLDER_IMAGES.length],
+    averageRating: doc.averageRating || 0,
+    totalReviews: doc.totalReviews || 0,
   }));
 };
 
@@ -263,6 +274,11 @@ export default function BookNew() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-2 flex-1">
+                <div className="flex items-center text-sm">
+                  <Star className="mr-1.5 h-4 w-4 fill-yellow-400 text-yellow-400" />
+                  <span className="font-bold">{doctor.averageRating > 0 ? doctor.averageRating.toFixed(1) : 'New'}</span>
+                  <span className="text-muted-foreground ml-1">({doctor.totalReviews} reviews)</span>
+                </div>
                 <div className="flex items-center text-sm text-muted-foreground">
                   <Clock className="mr-2 h-4 w-4 text-primary" />
                   <span>{doctor.experience} Years Experience</span>

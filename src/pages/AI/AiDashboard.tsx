@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import api from '@/lib/api';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { 
@@ -30,28 +30,21 @@ interface Message {
 
 // 1. Triage API
 const sendSymptomTriage = async (text: string) => {
-  const token = localStorage.getItem("token");
-  const response = await axios.post("http://localhost:4000/api/ai/triage", 
-    { symptoms: text }, // Matches Joi Schema
-    { headers: { Authorization: `Bearer ${token}` } }
+  const response = await api.post("/api/ai/triage", 
+    { symptoms: text } // Matches Joi Schema
   );
   return response.data; // Returns { success: true, data: { answer, searchSources } }
 };
 
 // 2. Timeline API
 const generateTimeline = async () => {
-  const token = localStorage.getItem("token");
-  const response = await axios.get("http://localhost:4000/api/ai/timeline", {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  const response = await api.get("/api/ai/timeline");
   return response.data; // Returns { success: true, data: { report, searchSources } }
 };
 
 // 3. PDF API
 const downloadTimelinePDF = async () => {
-  const token = localStorage.getItem("token");
-  const response = await axios.get("http://localhost:4000/api/ai/timeline/pdf", {
-    headers: { Authorization: `Bearer ${token}` },
+  const response = await api.get("/api/ai/timeline/pdf", {
     responseType: 'blob',
   });
   return response.data;

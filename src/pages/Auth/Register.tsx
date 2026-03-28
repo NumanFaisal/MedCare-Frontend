@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from "sonner";
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '@/lib/api';
 
 import AuthLayout from './../../components/layouts/AuthLayout.tsx';
 import { signUpSchema, type SignUpFormValues } from '@/schemas/auth';
@@ -54,10 +54,8 @@ export default function SignUp() {
   };
 
   const onSubmit = async (data: SignUpFormValues) => {
-    console.log("Submitting to Backend:", data);
     try {
-      const response = await axios.post("http://localhost:4000/api/auth/register", data);
-      console.log("Registration success:", response.data);
+      const response = await api.post("/api/auth/register", data);
       toast("Account created!", {
         description: "Welcome to MedCare",
       });

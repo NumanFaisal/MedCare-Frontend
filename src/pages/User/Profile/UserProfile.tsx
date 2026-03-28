@@ -3,11 +3,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast, Toaster } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, ShieldCheck, User as UserIcon } from "lucide-react";
+import { toast } from "sonner";
+import { Loader2, ShieldCheck } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "@/lib/api";
 
 // Define the shape of our form data
 interface UserProfileData {
@@ -60,10 +59,7 @@ function UserProfile() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const response = await axios.get("http://localhost:4000/api/auth/profile", {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const response = await api.get("/api/auth/profile");
 
         const data = response.data;
         const profile = data.patient || {};
@@ -113,7 +109,6 @@ function UserProfile() {
     setSaving(true);
 
     try {
-      const token = localStorage.getItem("token");
 
       const payload = {
         dateOfBirth: formData.dateOfBirth ? new Date(formData.dateOfBirth).toISOString() : undefined,
@@ -129,9 +124,7 @@ function UserProfile() {
         currentMedications: formData.currentMedications ? formData.currentMedications.split(',').map(s => s.trim()) : [],
       };
 
-      await axios.patch("http://localhost:4000/api/profile/update", payload, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.patch("/api/profile/update", payload);
 
       toast.success("Profile Updated", {
         description: "Your profile information has been saved.",
@@ -155,9 +148,8 @@ function UserProfile() {
     return <div className="flex h-[50vh] items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
   }
 
-  return (
+   return (
     <div>
-      <Toaster />
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
           <div>

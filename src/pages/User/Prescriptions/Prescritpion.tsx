@@ -1,5 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
+import api from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,13 +31,13 @@ interface FormattedPrescription {
 
 // --- API FETCH FUNCTION ---
 const fetchPrescriptions = async (): Promise<FormattedPrescription[]> => {
-  const token = localStorage.getItem("token");
-  const response = await axios.get("http://localhost:4000/api/prescriptions/patient/me", {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  const response = await api.get("/api/prescriptions/patient/me");
+
+  // Backend returns paginated { data: [...], meta: {...} }
+  const prescriptions = response.data.data || response.data;
 
   // Data Transformation
-  return response.data.flatMap((rx: any) => {
+  return prescriptions.flatMap((rx: any) => {
     const doctorName = rx.doctor?.user 
       ? `Dr. ${rx.doctor.user.firstName} ${rx.doctor.user.lastName}`
       : "Unknown Doctor";

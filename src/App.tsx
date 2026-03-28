@@ -10,19 +10,22 @@ import DashboardLayout from './components/layouts/DashboardLayout'
 import About from "./pages/about/page";
 import ContactPage from './pages/contact/page'
 import Features from './components/Features'
-
+import ProtectedRoute from './components/ProtectedRoute'
 
 // User Pages
 import UserDashboard from './pages/User/Dashboard'
 import Prescription from './pages/User/Prescriptions/Prescritpion.tsx'
 import UserProfile from './pages/User/Profile/UserProfile.tsx'
-import BookNew from './pages/User/Appointments/BookNew.tsx' // Ensure this path matches where you saved BookNew
+import BookNew from './pages/User/Appointments/BookNew.tsx'
+import MyAppointments from './pages/User/Appointments/MyAppointments.tsx'
+import AnalysisReport from './pages/User/AnalysisReport.tsx'
 
 // Doctor Pages
 import DocDashboard from './pages/Doctor/Dashboard'
 import CreatePrescription from './pages/Doctor/CreatePrescription/CreatePrescription.tsx'
 import PatientsList from './pages/Doctor/PatientsList/PatientsList.tsx'
 import DocProfile from './pages/Doctor/DocProfile/DocProfile.tsx'
+import DoctorAvailability from './pages/DoctorAvailability.tsx'
 
 // Medical Pages
 import MedDashboard from './pages/Medical/Dashboard'
@@ -30,7 +33,6 @@ import FetchPrescriptions from './pages/Medical/fetch-prescriptions/fetch-prescr
 import MedProfile from './pages/Medical/MedProfile/MedProfile.tsx'
 
 // AI & Booking (Standalone/Shared)
-import AiDashboard from './pages/AI/AiDashboard.tsx'
 import BookingDetails from './pages/BookingDetails/BookingDetails.tsx'
 // import BookingDetails from './pages/book/BookingDetails.tsx' // Check this path matches where you saved the new file
 
@@ -56,22 +58,28 @@ function App() {
            the /user/* section, but you must change navigate() in BookNew.tsx 
            to navigate('/user/book/1').
         */}
-        <Route path="/book/:id" element={<BookingDetails />} />
-        <Route path="/user/ai-health" element={<AiDashboard />} />
+        <Route path="/book/:id" element={
+          <ProtectedRoute allowedRoles={['USER']}>
+            <BookingDetails />
+          </ProtectedRoute>
+        } />
 
         {/* USER ROUTES */}
         <Route
           path="/user/*"
           element={
-            <DashboardLayout role="USER">
-              <Routes>
-                <Route index element={<UserDashboard />} />
-                <Route path="prescriptions" element={<Prescription />} />
-                <Route path="profile" element={<UserProfile />} />
-                <Route path="appointments/book-new" element={<BookNew />} />
-                {/* <Route path="/user/ai-health" element={<AiDashboard />} /> */}
-              </Routes>
-            </DashboardLayout>
+            <ProtectedRoute allowedRoles={['USER']}>
+              <DashboardLayout role="USER">
+                <Routes>
+                  <Route index element={<UserDashboard />} />
+                  <Route path="prescriptions" element={<Prescription />} />
+                  <Route path="profile" element={<UserProfile />} />
+                  <Route path="appointments" element={<MyAppointments />} />
+                  <Route path="appointments/book-new" element={<BookNew />} />
+                  <Route path="analysis-report" element={<AnalysisReport />} />
+                </Routes>
+              </DashboardLayout>
+            </ProtectedRoute>
           }
         />
 
@@ -79,14 +87,17 @@ function App() {
         <Route
           path="/doctor/*"
           element={
-            <DashboardLayout role="DOCTOR">
-              <Routes>
-                <Route index element={<DocDashboard />} />
-                <Route path="create-prescription" element={<CreatePrescription />} />
-                <Route path="patients" element={<PatientsList />} />
-                <Route path="profile" element={<DocProfile />} />
-              </Routes>
-            </DashboardLayout>
+            <ProtectedRoute allowedRoles={['DOCTOR']}>
+              <DashboardLayout role="DOCTOR">
+                <Routes>
+                  <Route index element={<DocDashboard />} />
+                  <Route path="create-prescription" element={<CreatePrescription />} />
+                  <Route path="patients" element={<PatientsList />} />
+                  <Route path="profile" element={<DocProfile />} />
+                  <Route path="availability" element={<DoctorAvailability />} />
+                </Routes>
+              </DashboardLayout>
+            </ProtectedRoute>
           }
         />
 
@@ -94,13 +105,15 @@ function App() {
         <Route
           path="/medical/*"
           element={
-            <DashboardLayout role="MEDICAL">
-              <Routes>
-                <Route index element={<MedDashboard />} />
-                <Route path='/fetch-prescriptions' element={<FetchPrescriptions />} />
-                <Route path='/profile' element={<MedProfile />} />
-              </Routes>
-            </DashboardLayout>
+            <ProtectedRoute allowedRoles={['MEDICAL']}>
+              <DashboardLayout role="MEDICAL">
+                <Routes>
+                  <Route index element={<MedDashboard />} />
+                  <Route path='/fetch-prescriptions' element={<FetchPrescriptions />} />
+                  <Route path='/profile' element={<MedProfile />} />
+                </Routes>
+              </DashboardLayout>
+            </ProtectedRoute>
           }
         />
 

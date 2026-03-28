@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "@/lib/api";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, FileText } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,10 +40,7 @@ interface PrescriptionPayload {
 
 // --- API FUNCTIONS ---
 const fetchUniquePatients = async (): Promise<PatientOption[]> => {
-  const token = localStorage.getItem("token");
-  const response = await axios.get("http://localhost:4000/api/appointments/doctor/my-appointments", {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  const response = await api.get("/api/appointments/doctor/my-appointments");
 
   const appointments = response.data.appointments || [];
   const uniquePatientsMap = new Map();
@@ -65,10 +62,7 @@ const fetchUniquePatients = async (): Promise<PatientOption[]> => {
 };
 
 const createPrescription = async (payload: PrescriptionPayload) => {
-  const token = localStorage.getItem("token");
-  const response = await axios.post("http://localhost:4000/api/prescriptions/", payload, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  const response = await api.post("/api/prescriptions/", payload);
   return response.data;
 };
 
@@ -253,7 +247,7 @@ const CreatePrescription = () => {
                       {patientsList.length > 0 ? (
                         patientsList.map(patient => (
                           <SelectItem className="hover:bg-[#FDE1D3] cursor-pointer" key={patient.id} value={String(patient.id)}>
-                            {patient.name}
+                            {patient.name} <span className="text-xs text-blue-600 font-mono ml-1">({patient.userUniqueId})</span>
                           </SelectItem>
                         ))
                       ) : (
@@ -270,11 +264,11 @@ const CreatePrescription = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="patientId">Patient ID</Label>
+                  <Label htmlFor="patientId">Patient Unique ID</Label>
                   <Input
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10"
                     id="patientId"
-                    value={selectedPatientId ? `ID: ${selectedPatientId}` : ''}
+                    value={selectedPatientId ? (patientsList.find(p => String(p.id) === selectedPatientId)?.userUniqueId || '') : ''}
                     readOnly
                     placeholder="Select a patient above"
                   />

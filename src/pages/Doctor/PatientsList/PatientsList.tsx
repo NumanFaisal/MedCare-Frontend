@@ -1,8 +1,7 @@
 import { useState } from "react";
-import axios from "axios";
+import api from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { Loader2, AlertCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
 import NoPatients from "@/components/Patient/NoPatients";
 import PatientCard from "@/components/Patient/PatientCard";
@@ -14,10 +13,7 @@ import type { PatientType } from "@/types/patient";
 
 // --- API FETCH FUNCTION ---
 const fetchPatients = async (): Promise<PatientType[]> => {
-  const token = localStorage.getItem("token");
-  const response = await axios.get("http://localhost:4000/api/users/doctor/my-patients", {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  const response = await api.get("/api/users/doctor/my-patients");
 
   // Map Backend Data to Frontend PatientType
   return response.data.map((p: any) => {
@@ -29,6 +25,7 @@ const fetchPatients = async (): Promise<PatientType[]> => {
     return {
       id: p.id.toString(),
       name: `${p.user.firstName} ${p.user.lastName}`,
+      userUniqueId: p.user.userUniqueId || `P-${p.id}`,
       age: age,
       gender: p.gender || p.user.gender || "Unknown",
       phone: p.user.phoneNumber || "N/A",

@@ -1,6 +1,7 @@
 export interface PatientType {
     id: string;
     name: string;
+    userUniqueId: string;
     age: number;
     gender: string;
     condition: string;
