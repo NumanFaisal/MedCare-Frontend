@@ -1,15 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  Calendar as CalendarIcon, 
-  Settings as SettingsIcon, 
-  Repeat, 
-  MapPin, 
-  Plus, 
-  Save, 
-  Loader2, 
-  AlertCircle
-} from 'lucide-react';
+import { Calendar as CalendarIcon, Settings2, Repeat, Loader2, Ban, Plus } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { AvailabilityCalendar } from '@/components/Doctor/AvailabilityCalendar';
@@ -18,46 +9,35 @@ import { AvailabilitySettingsForm } from '@/components/Doctor/AvailabilitySettin
 import { availabilityService } from '@/services/availabilityService';
 import type { AvailabilityRule } from '@/types/availability';
 import { toast } from 'sonner';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { format } from 'date-fns';
 
 export default function DoctorAvailabilityPage() {
   const queryClient = useQueryClient();
-  const [selectedClinic, setSelectedClinic] = useState<string>('all');
-  const [activeTab, setActiveTab] = useState('calendar');
-  
-  // Override Modal State
-  const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('weekly');
+
+  // Override Modal
+  const [isOverrideOpen, setIsOverrideOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [overrideData, setOverrideData] = useState<{
-      status: 'AVAILABLE' | 'UNAVAILABLE';
-      startTime: string;
-      endTime: string;
-      mode: 'ALL_DAY' | 'TIME_BLOCK';
-  }>({
-      status: 'UNAVAILABLE',
-      startTime: '09:00',
-      endTime: '17:00',
-      mode: 'ALL_DAY'
-  });
+  const [overrideStatus, setOverrideStatus] = useState<'UNAVAILABLE' | 'AVAILABLE'>('UNAVAILABLE');
+  const [overrideMode, setOverrideMode] = useState<'ALL_DAY' | 'TIME_BLOCK'>('ALL_DAY');
+  const [overrideStart, setOverrideStart] = useState('09:00');
+  const [overrideEnd, setOverrideEnd] = useState('17:00');
 
   const { data: context, isLoading, error } = useQuery({
-    queryKey: ['availability', selectedClinic],
-    queryFn: () => availabilityService.getAvailabilityContext(selectedClinic === 'all' ? undefined : selectedClinic)
+    queryKey: ['availability'],
+    queryFn: () => availabilityService.getAvailabilityContext()
   });
 
   const updateRules = useMutation({
-    mutationFn: (rules: AvailabilityRule[]) => availabilityService.updateWeeklySchedule(rules, selectedClinic === 'all' ? undefined : parseInt(selectedClinic)),
+    mutationFn: (rules: AvailabilityRule[]) => availabilityService.updateWeeklySchedule(rules),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['availability'] });
-      toast.success('Weekly schedule updated');
+      toast.success('Schedule updated');
     },
-    onError: (err: any) => toast.error(err.message || 'Failed to update schedule')
+    onError: () => toast.error('Failed to update schedule')
   });
 
   const updateSettings = useMutation({
@@ -72,216 +52,187 @@ export default function DoctorAvailabilityPage() {
     mutationFn: availabilityService.addDateOverride,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['availability'] });
-      setIsOverrideModalOpen(false);
-      toast.success('Date override applied');
+      setIsOverrideOpen(false);
+      toast.success('Override saved');
     }
   });
 
   const handleDateClick = (date: Date) => {
     setSelectedDate(date);
-    setIsOverrideModalOpen(true);
+    setOverrideStatus('UNAVAILABLE');
+    setOverrideMode('ALL_DAY');
+    setOverrideStart('09:00');
+    setOverrideEnd('17:00');
+    setIsOverrideOpen(true);
   };
 
-  const handleApplyOverride = () => {
+  const handleSaveOverride = () => {
     if (!selectedDate) return;
-    
     addOverride.mutate({
       date: format(selectedDate, 'yyyy-MM-dd'),
-      status: overrideData.status,
-      startTime: overrideData.mode === 'TIME_BLOCK' ? overrideData.startTime : null,
-      endTime: overrideData.mode === 'TIME_BLOCK' ? overrideData.endTime : null,
-      clinicId: selectedClinic === 'all' ? null : parseInt(selectedClinic)
+      status: overrideStatus,
+      startTime: overrideMode === 'TIME_BLOCK' ? overrideStart : null,
+      endTime: overrideMode === 'TIME_BLOCK' ? overrideEnd : null,
+      clinicId: null
     });
   };
 
+  // --- Loading ---
   if (isLoading) return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <Loader2 className="animate-spin text-primary" size={48} />
-        <p className="text-muted-foreground font-bold animate-pulse uppercase tracking-[0.2em] text-xs">Syncing availability patterns...</p>
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <Loader2 className="animate-spin text-muted-foreground" size={32} />
     </div>
   );
 
+  // --- Error ---
   if (error) return (
-    <div className="max-w-xl mx-auto mt-20 p-8 rounded-3xl bg-red-50 border border-red-100 flex flex-col items-center text-center gap-4">
-        <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center text-red-600">
-            <AlertCircle size={32} />
-        </div>
-        <CardTitle className="text-2xl text-red-900">Failed to load schedule</CardTitle>
-        <p className="text-red-700 font-medium">There was an error connecting to the availability service. Please check your connection and try again.</p>
-        <Button variant="outline" className="mt-4 border-red-200 text-red-700 bg-white hover:bg-red-50" onClick={() => window.location.reload()}>Retry Connection</Button>
+    <div className="max-w-md mx-auto mt-24 text-center space-y-4">
+      <p className="text-lg font-medium">Unable to load availability</p>
+      <p className="text-sm text-muted-foreground">Please check your connection and try again.</p>
+      <Button variant="outline" onClick={() => window.location.reload()}>Retry</Button>
     </div>
   );
 
   return (
-    <div className="max-w-7xl mx-auto py-10 px-6 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-primary/5 pb-8">
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-              <div className="h-10 w-1 pt-[2px] bg-primary rounded-full" />
-              <h1 className="text-4xl font-extrabold tracking-tight text-primary">Schedule & Clinics</h1>
-          </div>
-          <p className="text-lg text-muted-foreground font-medium max-w-2xl">
-            Manage your professional availability across different locations, set recurring patterns, and define scheduling constraints.
-          </p>
-        </div>
-        
-        <div className="flex flex-col gap-3 min-w-[300px]">
-          <Label className="text-sm font-bold flex items-center gap-2 px-1">
-              <MapPin size={14} className="text-primary" /> Active Practice Location
-          </Label>
-          <Select value={selectedClinic} onValueChange={setSelectedClinic}>
-            <SelectTrigger className="h-12 bg-white shadow-sm border-primary/10 font-bold text-primary focus:ring-primary/20 transition-all">
-              <SelectValue placeholder="Select Clinic" />
-            </SelectTrigger>
-            <SelectContent className="border-primary/10">
-              <SelectItem value="all" className="font-bold">All Practice Locations</SelectItem>
-              {context?.clinics.map(({ clinic }) => (
-                <SelectItem key={clinic.id} value={clinic.id.toString()} className="font-medium">
-                  {clinic.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 bg-[#f7f9fb] min-h-screen">
+      {/* Header */}
+      <div className="mb-10">
+        <h1 className="text-3xl font-semibold tracking-tight text-slate-900 font-sans">Availability</h1>
+        <p className="text-base text-slate-500 mt-2">
+          Manage your working hours, set exceptions, and configure booking preferences.
+        </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-        <div className="sticky top-4 z-40 bg-white/80 backdrop-blur-xl p-2 rounded-2xl border border-primary/5 shadow-2xl/5 inline-block">
-            <TabsList className="bg-transparent h-12 gap-2">
-                <TabsTrigger value="calendar" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground h-10 px-6 rounded-xl font-bold transition-all gap-2">
-                    <CalendarIcon size={16} /> Calendar View
-                </TabsTrigger>
-                <TabsTrigger value="recurring" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground h-10 px-6 rounded-xl font-bold transition-all gap-2">
-                    <Repeat size={16} /> Weekly Pattern
-                </TabsTrigger>
-                <TabsTrigger value="settings" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground h-10 px-6 rounded-xl font-bold transition-all gap-2">
-                    <SettingsIcon size={16} /> Settings
-                </TabsTrigger>
-            </TabsList>
-        </div>
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="h-auto p-1 bg-[#f2f4f6] border-0 rounded-xl inline-flex mb-8">
+          <TabsTrigger value="weekly" className="text-sm gap-2 px-5 py-2.5 rounded-lg data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm transition-all text-slate-500">
+            <Repeat size={16} /> Weekly Hours
+          </TabsTrigger>
+          <TabsTrigger value="calendar" className="text-sm gap-2 px-5 py-2.5 rounded-lg data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm transition-all text-slate-500">
+            <CalendarIcon size={16} /> Exceptions Calendar
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="text-sm gap-2 px-5 py-2.5 rounded-lg data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm transition-all text-slate-500">
+            <Settings2 size={16} /> Preferences
+          </TabsTrigger>
+        </TabsList>
 
-        <TabsContent value="calendar" className="focus-visible:outline-none">
-          <AvailabilityCalendar 
-            rules={context?.availability || []} 
-            overrides={context?.overrides || []}
-            onDateClick={handleDateClick}
-            selectedClinic={selectedClinic === 'all' ? null : parseInt(selectedClinic)}
-          />
-        </TabsContent>
-
-        <TabsContent value="recurring" className="focus-visible:outline-none">
-          <WeeklySchedule 
-            rules={context?.availability || []} 
+        <TabsContent value="weekly" className="mt-6">
+          <WeeklySchedule
+            rules={context?.availability || []}
             onUpdate={(rules) => updateRules.mutate(rules)}
             isLoading={updateRules.isPending}
           />
         </TabsContent>
 
-        <TabsContent value="settings" className="focus-visible:outline-none">
-          <AvailabilitySettingsForm 
-            settings={context?.settings || { slotDuration: 30, bufferTime: 5, autoApproval: true }} 
-            onUpdate={(settings) => updateSettings.mutate(settings)}
+        <TabsContent value="calendar" className="mt-6">
+          <AvailabilityCalendar
+            rules={context?.availability || []}
+            overrides={context?.overrides || []}
+            onDateClick={handleDateClick}
+          />
+        </TabsContent>
+
+        <TabsContent value="settings" className="mt-6">
+          <AvailabilitySettingsForm
+            settings={context?.settings || { slotDuration: 30, bufferTime: 5, autoApproval: true, vacationMode: false }}
+            onUpdate={(s) => updateSettings.mutate(s)}
             isLoading={updateSettings.isPending}
           />
         </TabsContent>
       </Tabs>
 
       {/* Override Dialog */}
-      <Dialog open={isOverrideModalOpen} onOpenChange={setIsOverrideModalOpen}>
-        <DialogContent className="sm:max-w-[450px] overflow-hidden p-0 rounded-3xl border-0 shadow-2xl">
-          <div className="bg-primary/5 p-8 border-b border-primary/5">
-              <DialogHeader>
-                <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                        <CalendarIcon size={18} />
-                    </div>
-                    <DialogTitle className="text-2xl font-black text-primary">Date Override</DialogTitle>
-                </div>
-                <DialogDescription className="text-primary/70 font-semibold text-base">
-                  Changing availability for {selectedDate && format(selectedDate, 'EEEE, MMMM do')}
-                </DialogDescription>
-              </DialogHeader>
-          </div>
+      <Dialog open={isOverrideOpen} onOpenChange={setIsOverrideOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Date Override</DialogTitle>
+            <DialogDescription>
+              {selectedDate ? format(selectedDate, 'EEEE, MMMM d, yyyy') : ''}
+            </DialogDescription>
+          </DialogHeader>
 
-          <div className="p-8 space-y-8">
-            <div className="space-y-4">
-              <Label className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Select Status</Label>
-              <RadioGroup 
-                value={overrideData.status} 
-                onValueChange={(v) => setOverrideData({...overrideData, status: v as any})}
-                className="grid grid-cols-2 gap-4"
-              >
-                  <div className="relative">
-                      <RadioGroupItem value="UNAVAILABLE" id="status-unavailable" className="peer sr-only" />
-                      <Label 
-                        htmlFor="status-unavailable"
-                        className="flex flex-col items-center justify-between rounded-2xl border-2 border-muted bg-popover p-6 hover:bg-muted/50 peer-data-[state=checked]:border-red-500 peer-data-[state=checked]:bg-red-50/50 cursor-pointer transition-all"
-                      >
-                          <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 mb-2">
-                              <AlertCircle size={20} />
-                          </div>
-                        <span className="font-bold text-red-900">Blocked</span>
-                      </Label>
-                  </div>
-                  <div className="relative">
-                      <RadioGroupItem value="AVAILABLE" id="status-available" className="peer sr-only" />
-                      <Label 
-                        htmlFor="status-available"
-                        className="flex flex-col items-center justify-between rounded-2xl border-2 border-muted bg-popover p-6 hover:bg-muted/50 peer-data-[state=checked]:border-sage-500 peer-data-[state=checked]:bg-sage-50/50 cursor-pointer transition-all"
-                      >
-                          <div className="w-10 h-10 rounded-full bg-sage-100 flex items-center justify-center text-sage-600 mb-2">
-                              <Plus size={20} />
-                          </div>
-                        <span className="font-bold text-sage-900">Available</span>
-                      </Label>
-                  </div>
-              </RadioGroup>
+          <div className="space-y-5 pt-2">
+            {/* Status Toggle */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Status</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setOverrideStatus('UNAVAILABLE')}
+                  className={`flex flex-col items-center justify-center gap-2 rounded-xl border-0 p-4 text-sm font-medium transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary/20 ${
+                    overrideStatus === 'UNAVAILABLE'
+                      ? 'bg-[#ffdad6] text-[#93000a] shadow-sm ring-1 ring-[#ffdad6]'
+                      : 'bg-[#f2f4f6] text-slate-500 hover:bg-[#e6e8ea]'
+                  }`}
+                >
+                  <Ban size={14} /> Block
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOverrideStatus('AVAILABLE')}
+                  className={`flex flex-col items-center justify-center gap-2 rounded-xl border-0 p-4 text-sm font-medium transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary/20 ${
+                    overrideStatus === 'AVAILABLE'
+                      ? 'bg-[#d4e3ff] text-[#001c3a] shadow-sm ring-1 ring-[#d4e3ff]'
+                      : 'bg-[#f2f4f6] text-slate-500 hover:bg-[#e6e8ea]'
+                  }`}
+                >
+                  <Plus size={14} /> Available
+                </button>
+              </div>
             </div>
 
-            <div className="space-y-4">
-               <Label className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Override Range</Label>
-               <Select value={overrideData.mode} onValueChange={(v) => setOverrideData({...overrideData, mode: v as any})}>
-                   <SelectTrigger className="h-14 font-bold border-muted/60 bg-muted/20">
-                       <SelectValue />
-                   </SelectTrigger>
-                   <SelectContent>
-                       <SelectItem value="ALL_DAY" className="font-medium">Full Day (No slots)</SelectItem>
-                       <SelectItem value="TIME_BLOCK" className="font-medium">Specific Time Block</SelectItem>
-                   </SelectContent>
-               </Select>
+            {/* Mode Toggle */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Duration</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setOverrideMode('ALL_DAY')}
+                  className={`rounded-xl border-0 px-4 py-3 text-sm font-medium transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary/20 flex items-center justify-center ${
+                    overrideMode === 'ALL_DAY'
+                      ? 'bg-[#d4e3ff] text-[#001c3a] shadow-sm'
+                      : 'bg-[#f2f4f6] text-slate-500 hover:bg-[#e6e8ea]'
+                  }`}
+                >
+                  Entire Day
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOverrideMode('TIME_BLOCK')}
+                  className={`rounded-xl border-0 px-4 py-3 text-sm font-medium transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary/20 flex items-center justify-center ${
+                    overrideMode === 'TIME_BLOCK'
+                      ? 'bg-[#d4e3ff] text-[#001c3a] shadow-sm'
+                      : 'bg-[#f2f4f6] text-slate-500 hover:bg-[#e6e8ea]'
+                  }`}
+                >
+                  Time Range
+                </button>
+              </div>
             </div>
 
-            {overrideData.mode === 'TIME_BLOCK' && (
-              <div className="grid grid-cols-2 gap-6 animate-in slide-in-from-top-2 duration-300">
-                <div className="space-y-2">
-                  <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Start Time</Label>
-                  <Input 
-                    type="time" 
-                    value={overrideData.startTime} 
-                    onChange={(e) => setOverrideData({...overrideData, startTime: e.target.value})}
-                    className="h-12 font-bold bg-muted/10 border-primary/5 focus:ring-primary/20"
-                  />
+            {/* Time inputs */}
+            {overrideMode === 'TIME_BLOCK' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Start</Label>
+                  <Input type="time" value={overrideStart} onChange={(e) => setOverrideStart(e.target.value)} />
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">End Time</Label>
-                  <Input 
-                    type="time" 
-                    value={overrideData.endTime} 
-                    onChange={(e) => setOverrideData({...overrideData, endTime: e.target.value})}
-                    className="h-12 font-bold bg-muted/10 border-primary/5 focus:ring-primary/20"
-                  />
+                <div className="space-y-1.5">
+                  <Label className="text-sm">End</Label>
+                  <Input type="time" value={overrideEnd} onChange={(e) => setOverrideEnd(e.target.value)} />
                 </div>
               </div>
             )}
           </div>
 
-          <div className="p-8 bg-muted/5 flex justify-end gap-3 border-t border-primary/5">
-              <Button variant="ghost" className="h-12 px-6 rounded-xl font-bold" onClick={() => setIsOverrideModalOpen(false)}>Cancel</Button>
-              <Button className="h-12 px-8 rounded-xl font-black shadow-lg hover:shadow-primary/20 transition-all gap-2" onClick={handleApplyOverride} disabled={addOverride.isPending}>
-                {addOverride.isPending ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-                Apply Change
-              </Button>
-          </div>
+          <DialogFooter className="pt-6 sm:justify-between w-full">
+            <Button variant="ghost" onClick={() => setIsOverrideOpen(false)} className="rounded-xl text-slate-500 hover:text-slate-900">Cancel</Button>
+            <Button onClick={handleSaveOverride} disabled={addOverride.isPending} className="rounded-xl bg-gradient-to-br from-[#005dac] to-[#1976d2] text-white hover:opacity-90 shadow-sm border-0">
+              {addOverride.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Override
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

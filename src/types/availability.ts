@@ -22,6 +22,7 @@ export interface AvailabilitySettings {
   bufferTime: number;
   maxAppointments?: number | null;
   autoApproval: boolean;
+  vacationMode: boolean;
 }
 
 export interface Clinic {

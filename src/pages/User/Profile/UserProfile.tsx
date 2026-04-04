@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Loader2, ShieldCheck } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
+import { ImageUpload } from "@/components/ImageUpload";
 
 // Define the shape of our form data
 interface UserProfileData {
@@ -54,6 +55,7 @@ function UserProfile() {
     medicalConditions: "",
     currentMedications: ""
   });
+  const [profileImage, setProfileImage] = useState<string | null>(null);
 
   // --- 1. FETCH USER DATA ---
   useEffect(() => {
@@ -85,6 +87,8 @@ function UserProfile() {
           medicalConditions: Array.isArray(profile.medicalConditions) ? profile.medicalConditions.join(", ") : (profile.medicalConditions || ""),
           currentMedications: Array.isArray(profile.currentMedications) ? profile.currentMedications.join(", ") : (profile.currentMedications || "")
         });
+
+        setProfileImage(data.profileImageDb || null);
 
       } catch (error) {
         console.error("Error loading profile:", error);
@@ -156,13 +160,17 @@ function UserProfile() {
             <h1 className="text-3xl font-bold">My Profile</h1>
             <p className="text-gray-600 mt-1">View and update your personal information</p>
           </div>
-          {/* User Unique ID Display */}
-          <div className="mt-4 md:mt-0 flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-lg border border-blue-100">
-            <ShieldCheck className="h-5 w-5 text-blue-600" />
-            <div className="flex flex-col">
-              <span className="text-xs text-blue-600 font-semibold uppercase">Patient ID</span>
-              <span className="font-mono font-bold text-blue-900">{formData.userUniqueId}</span>
+          {/* User Unique ID Display & PFP */}
+          <div className="mt-4 md:mt-0 flex flex-col md:flex-row items-center gap-4">
+            <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-lg border border-blue-100 h-fit">
+              <ShieldCheck className="h-5 w-5 text-blue-600" />
+              <div className="flex flex-col">
+                <span className="text-xs text-blue-600 font-semibold uppercase">Patient ID</span>
+                <span className="font-mono font-bold text-blue-900">{formData.userUniqueId}</span>
+              </div>
             </div>
+            {/* Image Upload Component */}
+            <ImageUpload currentImageUrl={profileImage} onUploadSuccess={(url) => setProfileImage(url)} />
           </div>
         </div>
 

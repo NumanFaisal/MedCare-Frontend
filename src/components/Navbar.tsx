@@ -1,12 +1,38 @@
-import { Link } from "react-router-dom";
-import { Stethoscope, User, X, Menu, ChevronDown, UserCircle, Pill } from 'lucide-react';
+import { Link, useNavigate } from "react-router-dom";
+import { Stethoscope, User, X, Menu, ChevronDown, UserCircle, Pill, LogOut } from 'lucide-react';
 import { Button } from "../components/ui/button";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import api from "@/lib/api";
 
 function Navbar() {
 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+    
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [profileImg, setProfileImg] = useState<string | null>(null);
+    const [role, setRole] = useState<string | null>(null);
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        const userRole = localStorage.getItem('role');
+        if (token && userRole) {
+            setIsLoggedIn(true);
+            setRole(userRole.toLowerCase());
+            api.get('/api/auth/profile')
+               .then(res => setProfileImg(res.data.profileImageDb || null))
+               .catch(err => console.error(err));
+        }
+    }, []);
+
+    const handleLogout = () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('role');
+        setIsLoggedIn(false);
+        setRole(null);
+        navigate('/');
+    };
     
 
     return (
@@ -41,72 +67,92 @@ function Navbar() {
                         Contact
                     </Link>
 
-                    {/* Sign In Dropdown */}
+                    {/* Sign In / Profile Dropdown */}
                     <div className="relative">
-                        <Button 
-                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#0A6EFF] to-[#2563eb] hover:from-[#2563eb] hover:to-[#0A6EFF] text-white rounded-lg shadow-md transition-all duration-300"
-                            onClick={() => setIsUserDropdownOpen(prev => !prev)}
-                        >
-                            <User className="w-4 h-4" />
-                            <span className="font-medium">Sign In</span>
-                            <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isUserDropdownOpen ? 'rotate-180' : ''}`} />
-                        </Button>
-
-                        {isUserDropdownOpen && (
-                            <div className="absolute right-0 mt-3 w-64 bg-white rounded-xl overflow-hidden shadow-2xl z-50 border border-gray-100">
-                                <div className="py-2">
-                                    <div className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100 bg-gray-50">
-                                        Choose Portal
+                        {isLoggedIn ? (
+                            <div className="flex items-center gap-3">
+                                <Link to={`/${role}`} className="flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200">
+                                    <div className="w-8 h-8 rounded-full bg-primary/10 overflow-hidden flex items-center justify-center border border-primary/20">
+                                        {profileImg ? (
+                                            <img src={profileImg} alt="Profile" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <User className="w-4 h-4 text-primary" />
+                                        )}
                                     </div>
-
-                                    <Link 
-                                        to="/login"
-                                        className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 transition-all"
-                                        onClick={() => setIsUserDropdownOpen(false)}
-                                    >
-                                        <UserCircle className="w-4 h-4 text-[#0A6EFF]" />
-                                        <div>
-                                            <div className="font-medium">Patient Portal</div>
-                                            <div className="text-xs text-gray-500">Access your health records</div>
-                                        </div>
-                                    </Link>
-
-                                    <Link 
-                                        to="/login"
-                                        className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-green-50 transition-all"
-                                        onClick={() => setIsUserDropdownOpen(false)}
-                                    >
-                                        <Stethoscope className="w-4 h-4 text-green-600" />
-                                        <div>
-                                            <div className="font-medium">Doctor Portal</div>
-                                            <div className="text-xs text-gray-500">Manage your practice</div>
-                                        </div>
-                                    </Link>
-
-                                    <Link 
-                                        to="/login"
-                                        className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 transition-all"
-                                        onClick={() => setIsUserDropdownOpen(false)}
-                                    >
-                                        <Pill className="w-4 h-4 text-purple-600" />
-                                        <div>
-                                            <div className="font-medium">Medical Shop Portal</div>
-                                            <div className="text-xs text-gray-500">Verify prescriptions</div>
-                                        </div>
-                                    </Link>
-                                </div>
-
-                                <div className="border-t border-gray-100 bg-gray-50 py-2">
-                                    <div className="px-4 py-2 text-xs text-gray-500 mb-1">Don't have an account?</div>
-                                    <Link 
-                                        to="/register"
-                                        className="block px-4 py-2 text-sm font-medium text-[#0A6EFF] hover:bg-blue-50 transition-all"
-                                        onClick={() => setIsUserDropdownOpen(false)}
-                                    >
-                                        Register Now →
-                                    </Link>
-                                </div>
+                                    <span className="font-medium text-sm text-gray-700 capitalize">Dashboard</span>
+                                </Link>
+                                <Button variant="ghost" size="icon" onClick={handleLogout} className="text-gray-500 hover:text-red-600 hover:bg-red-50">
+                                    <LogOut className="w-5 h-5" />
+                                </Button>
                             </div>
+                        ) : (
+                            <>
+                                <Button 
+                                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#0A6EFF] to-[#2563eb] hover:from-[#2563eb] hover:to-[#0A6EFF] text-white rounded-lg shadow-md transition-all duration-300"
+                                    onClick={() => setIsUserDropdownOpen(prev => !prev)}
+                                >
+                                    <User className="w-4 h-4" />
+                                    <span className="font-medium">Sign In</span>
+                                    <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isUserDropdownOpen ? 'rotate-180' : ''}`} />
+                                </Button>
+
+                                {isUserDropdownOpen && (
+                                    <div className="absolute right-0 mt-3 w-64 bg-white rounded-xl overflow-hidden shadow-2xl z-50 border border-gray-100">
+                                        <div className="py-2">
+                                            <div className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100 bg-gray-50">
+                                                Choose Portal
+                                            </div>
+
+                                            <Link 
+                                                to="/login"
+                                                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 transition-all"
+                                                onClick={() => setIsUserDropdownOpen(false)}
+                                            >
+                                                <UserCircle className="w-4 h-4 text-[#0A6EFF]" />
+                                                <div>
+                                                    <div className="font-medium">Patient Portal</div>
+                                                    <div className="text-xs text-gray-500">Access your health records</div>
+                                                </div>
+                                            </Link>
+
+                                            <Link 
+                                                to="/login"
+                                                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-green-50 transition-all"
+                                                onClick={() => setIsUserDropdownOpen(false)}
+                                            >
+                                                <Stethoscope className="w-4 h-4 text-green-600" />
+                                                <div>
+                                                    <div className="font-medium">Doctor Portal</div>
+                                                    <div className="text-xs text-gray-500">Manage your practice</div>
+                                                </div>
+                                            </Link>
+
+                                            <Link 
+                                                to="/login"
+                                                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 transition-all"
+                                                onClick={() => setIsUserDropdownOpen(false)}
+                                            >
+                                                <Pill className="w-4 h-4 text-purple-600" />
+                                                <div>
+                                                    <div className="font-medium">Medical Shop Portal</div>
+                                                    <div className="text-xs text-gray-500">Verify prescriptions</div>
+                                                </div>
+                                            </Link>
+                                        </div>
+
+                                        <div className="border-t border-gray-100 bg-gray-50 py-2">
+                                            <div className="px-4 py-2 text-xs text-gray-500 mb-1">Don't have an account?</div>
+                                            <Link 
+                                                to="/register"
+                                                className="block px-4 py-2 text-sm font-medium text-[#0A6EFF] hover:bg-blue-50 transition-all"
+                                                onClick={() => setIsUserDropdownOpen(false)}
+                                            >
+                                                Register Now →
+                                            </Link>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
                 </div>

@@ -1,12 +1,9 @@
 import { useState } from 'react';
-import { Plus, Trash2, Clock, Calendar, Check, AlertCircle } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Plus, Trash2, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { AvailabilityRule } from '../../types/availability';
-import { Badge } from '@/components/ui/badge';
+import type { AvailabilityRule } from '@/types/availability';
 
 interface WeeklyScheduleProps {
   rules: AvailabilityRule[];
@@ -15,26 +12,23 @@ interface WeeklyScheduleProps {
 }
 
 const DAYS = [
-  { label: 'Sunday', value: 0 },
-  { label: 'Monday', value: 1 },
-  { label: 'Tuesday', value: 2 },
-  { label: 'Wednesday', value: 3 },
-  { label: 'Thursday', value: 4 },
-  { label: 'Friday', value: 5 },
-  { label: 'Saturday', value: 6 },
+  { label: 'Sun', full: 'Sunday', value: 0 },
+  { label: 'Mon', full: 'Monday', value: 1 },
+  { label: 'Tue', full: 'Tuesday', value: 2 },
+  { label: 'Wed', full: 'Wednesday', value: 3 },
+  { label: 'Thu', full: 'Thursday', value: 4 },
+  { label: 'Fri', full: 'Friday', value: 5 },
+  { label: 'Sat', full: 'Saturday', value: 6 },
 ];
 
 export function WeeklySchedule({ rules, onUpdate, isLoading }: WeeklyScheduleProps) {
-  const [newRule, setNewRule] = useState<Partial<AvailabilityRule>>({
-    dayOfWeek: 1,
-    startTime: '09:00',
-    endTime: '17:00'
-  });
+  const [selectedDay, setSelectedDay] = useState(1);
+  const [startTime, setStartTime] = useState('09:00');
+  const [endTime, setEndTime] = useState('17:00');
 
   const handleAdd = () => {
-    if (newRule.startTime && newRule.endTime && newRule.dayOfWeek !== undefined) {
-      onUpdate([...rules, newRule as AvailabilityRule]);
-      setNewRule({ ...newRule });
+    if (startTime && endTime) {
+      onUpdate([...rules, { dayOfWeek: selectedDay, startTime, endTime } as AvailabilityRule]);
     }
   };
 
@@ -44,133 +38,110 @@ export function WeeklySchedule({ rules, onUpdate, isLoading }: WeeklySchedulePro
     onUpdate(next);
   };
 
+  const handleBulkAdd = (days: number[]) => {
+    const newRules = days.map(d => ({ dayOfWeek: d, startTime, endTime } as AvailabilityRule));
+    onUpdate([...rules, ...newRules]);
+  };
+
+  // Group rules by day
+  const sortedRules = [...rules].sort((a, b) => (a.dayOfWeek || 0) - (b.dayOfWeek || 0));
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-      {/* Add New Rule */}
-      <Card className="lg:col-span-4 self-start border-primary/20 shadow-xl overflow-hidden">
-        <CardHeader className="bg-primary/5 py-5">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg text-primary">
-              <Plus size={18} />
-            </div>
-            <CardTitle className="text-lg font-bold tracking-tight">Add Recurring Shift</CardTitle>
+    <div className="space-y-6">
+      {/* Add Shift Form */}
+      <div className="rounded-2xl bg-white p-6 space-y-6 shadow-sm border-0">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-semibold text-slate-900 leading-none mb-1.5">Add Working Hours</h3>
+            <p className="text-sm text-slate-500">These will repeat weekly on your calendar.</p>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-6 pt-6 px-6">
-          <div className="space-y-2">
-            <Label className="text-sm font-semibold flex items-center gap-2">
-                <Calendar size={14} className="text-primary/70" /> Select Day
-            </Label>
-            <Select 
-              value={newRule.dayOfWeek?.toString()} 
-              onValueChange={(v) => setNewRule({ ...newRule, dayOfWeek: parseInt(v) })}
-            >
-              <SelectTrigger className="h-11 font-medium bg-muted/30 hover:bg-muted/50 border-primary/10 transition-colors">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {DAYS.map(d => (
-                  <SelectItem key={d.value} value={d.value.toString()} className="font-medium">{d.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold flex items-center gap-2">
-                  <Clock size={14} className="text-primary/70" /> Starts
-              </Label>
-              <Input 
-                type="time" 
-                value={newRule.startTime} 
-                onChange={(e) => setNewRule({ ...newRule, startTime: e.target.value })}
-                className="h-11 font-medium bg-muted/30 border-primary/10 focus:ring-primary/20"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold flex items-center gap-2">
-                  <Clock size={14} className="text-primary/70" /> Ends
-              </Label>
-              <Input 
-                type="time" 
-                value={newRule.endTime} 
-                onChange={(e) => setNewRule({ ...newRule, endTime: e.target.value })}
-                className="h-11 font-medium bg-muted/30 border-primary/10 focus:ring-primary/20"
-              />
-            </div>
+        {/* Day Picker — native buttons, no dropdown */}
+        <div className="space-y-2">
+          <Label className="text-sm">Day</Label>
+          <div className="flex gap-1.5">
+            {DAYS.map(d => (
+              <button
+                key={d.value}
+                type="button"
+                onClick={() => setSelectedDay(d.value)}
+                className={`flex-1 rounded-xl px-1 py-3 text-xs font-semibold transition-all outline-none focus-visible:ring-2 focus-visible:ring-[#1976d2]/20 border-0 ${
+                  selectedDay === d.value
+                    ? 'bg-[#d4e3ff] text-[#001c3a] shadow-sm ring-1 ring-[#d4e3ff]'
+                    : 'bg-[#f2f4f6] text-slate-500 hover:bg-[#e6e8ea]'
+                }`}
+              >
+                {d.label}
+              </button>
+            ))}
           </div>
-          
-          <Button 
-            onClick={handleAdd} 
-            className="w-full h-11 text-sm font-bold shadow-md hover:shadow-lg transition-all gap-2" 
-            disabled={isLoading}
-          >
-            <Plus size={16} /> Add Rule
+        </div>
+
+        {/* Time Inputs */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-sm">Start</Label>
+            <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-sm">End</Label>
+            <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3 pt-2">
+          <Button onClick={handleAdd} disabled={isLoading} className="flex-1 gap-2 rounded-xl bg-gradient-to-br from-[#005dac] to-[#1976d2] text-white hover:opacity-90 shadow-sm border-0 border-transparent py-6">
+            <Plus size={16} /> Add Day Requirement
           </Button>
-          
-          <div className="flex gap-2 p-3 bg-muted/20 border border-muted/30 rounded-lg">
-              <AlertCircle size={14} className="text-muted-foreground shrink-0 mt-0.5" />
-              <p className="text-[11px] text-muted-foreground leading-relaxed font-medium">
-                  Recurring rules apply every week. You can block specific dates later in the calendar view.
-              </p>
-          </div>
-        </CardContent>
-      </Card>
+          <Button variant="ghost" className="rounded-xl flex-1 bg-[#f2f4f6] text-slate-500 hover:bg-[#e6e8ea] hover:text-slate-900 border-0" size="sm" onClick={() => handleBulkAdd([1,2,3,4,5])} disabled={isLoading}>
+            Mon–Fri
+          </Button>
+          <Button variant="ghost" className="rounded-xl flex-1 bg-[#f2f4f6] text-slate-500 hover:bg-[#e6e8ea] hover:text-slate-900 border-0" size="sm" onClick={() => handleBulkAdd([0,1,2,3,4,5,6])} disabled={isLoading}>
+            All Days
+          </Button>
+        </div>
+      </div>
 
-      {/* Active Rules List */}
-      <Card className="lg:col-span-8 shadow-md border-primary/5">
-        <CardHeader className="py-5 flex flex-row items-center justify-between border-b bg-muted/5">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-sage-500/10 rounded-lg text-sage-600">
-              <Check size={18} />
-            </div>
-            <CardTitle className="text-lg font-bold tracking-tight">Active Working Hours</CardTitle>
+      {/* Active Rules */}
+      <div className="rounded-2xl bg-white shadow-sm border-0 p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold text-slate-900">Current Schedule</h3>
+          <span className="text-xs bg-[#e0e3e5] px-2.5 py-1 rounded-full text-slate-600 font-semibold">{rules.length} rule{rules.length !== 1 ? 's' : ''}</span>
+        </div>
+
+        {sortedRules.length === 0 ? (
+          <div className="flex flex-col items-center py-16 text-center bg-[#f7f9fb] rounded-xl border border-dashed border-[#c1c6d4]">
+            <Clock size={28} className="text-slate-400 mb-3" />
+            <p className="text-sm font-semibold text-slate-700">No hours set</p>
+            <p className="text-sm text-slate-500 mt-1">Add your working hours above.</p>
           </div>
-          <Badge variant="secondary" className="bg-sage-100 text-sage-800 border-sage-200">
-            {rules.length} Rules Active
-          </Badge>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="divide-y max-h-[500px] overflow-y-auto">
-            {rules.length === 0 ? (
-              <div className="p-16 text-center text-muted-foreground bg-muted/5">
-                <div className="w-16 h-16 bg-muted/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-muted/30">
-                    <Calendar size={24} className="opacity-40" />
+        ) : (
+          <div className="flex flex-col gap-3">
+            {sortedRules.map((rule, idx) => (
+              <div key={idx} className="flex items-center justify-between px-5 py-4 bg-[#f7f9fb] hover:bg-[#eceef0] rounded-xl transition-colors group border-0">
+                <div className="flex items-center gap-4">
+                  <span className="text-[15px] font-semibold text-slate-900 w-28">
+                    {DAYS.find(d => d.value === rule.dayOfWeek)?.full}
+                  </span>
+                  <span className="text-sm text-slate-600 tabular-nums">
+                    {rule.startTime} — {rule.endTime}
+                  </span>
                 </div>
-                <p className="font-semibold text-base mb-1">No schedule rules defined</p>
-                <p className="text-sm font-medium opacity-70">Add your weekly clinic hours to get started.</p>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleRemove(idx)}
+                  className="h-8 w-8 rounded-full bg-white opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-[#93000a] hover:bg-[#ffdad6] shadow-sm border border-[#e0e3e5] hover:border-transparent"
+                >
+                  <Trash2 size={16} />
+                </Button>
               </div>
-            ) : (
-              rules.sort((a,b) => (a.dayOfWeek || 0) - (b.dayOfWeek || 0)).map((rule, idx) => (
-                <div key={idx} className="flex items-center justify-between p-5 hover:bg-muted/10 transition-all group">
-                  <div className="flex items-center gap-6">
-                    <div className="min-w-[120px]">
-                      <span className="font-bold text-base h-full flex items-center text-primary/80">
-                        {DAYS.find(d => d.value === rule.dayOfWeek)?.label}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 bg-muted/30 px-4 py-2 rounded-full border border-primary/10 transition-colors group-hover:bg-primary/5">
-                      <Clock size={14} className="text-primary/60" />
-                      <span className="font-bold text-sm tracking-tight text-primary/90">
-                        {rule.startTime} - {rule.endTime}
-                      </span>
-                    </div>
-                  </div>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => handleRemove(idx)}
-                    className="h-9 w-9 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-full opacity-0 group-hover:opacity-100 transition-all border border-transparent hover:border-red-100"
-                  >
-                    <Trash2 size={16} />
-                  </Button>
-                </div>
-              ))
-            )}
+            ))}
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
     </div>
   );
 }

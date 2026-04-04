@@ -2,45 +2,53 @@ import './App.css'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Toaster } from 'sonner'
 
+import { lazy, Suspense } from 'react'
+
 // Auth & Layouts
-import Login from './pages/Auth/Login'
-import LandingPage from './pages/LandingPage'
-import Register from './pages/Auth/Register'
+const Login = lazy(() => import('./pages/Auth/Login'))
+const LandingPage = lazy(() => import('./pages/LandingPage'))
+const Register = lazy(() => import('./pages/Auth/Register'))
 import DashboardLayout from './components/layouts/DashboardLayout'
-import About from "./pages/about/page";
-import ContactPage from './pages/contact/page'
+const About = lazy(() => import('./pages/about/page'))
+const ContactPage = lazy(() => import('./pages/contact/page'))
 import Features from './components/Features'
 import ProtectedRoute from './components/ProtectedRoute'
 
 // User Pages
-import UserDashboard from './pages/User/Dashboard'
-import Prescription from './pages/User/Prescriptions/Prescritpion.tsx'
-import UserProfile from './pages/User/Profile/UserProfile.tsx'
-import BookNew from './pages/User/Appointments/BookNew.tsx'
-import MyAppointments from './pages/User/Appointments/MyAppointments.tsx'
-import AnalysisReport from './pages/User/AnalysisReport.tsx'
+const UserDashboard = lazy(() => import('./pages/User/Dashboard'))
+const Prescription = lazy(() => import('./pages/User/Prescriptions/Prescritpion.tsx'))
+const UserProfile = lazy(() => import('./pages/User/Profile/UserProfile.tsx'))
+const BookNew = lazy(() => import('./pages/User/Appointments/BookNew.tsx'))
+const MyAppointments = lazy(() => import('./pages/User/Appointments/MyAppointments.tsx'))
+const AnalysisReport = lazy(() => import('./pages/User/AnalysisReport.tsx'))
 
 // Doctor Pages
-import DocDashboard from './pages/Doctor/Dashboard'
-import CreatePrescription from './pages/Doctor/CreatePrescription/CreatePrescription.tsx'
-import PatientsList from './pages/Doctor/PatientsList/PatientsList.tsx'
-import DocProfile from './pages/Doctor/DocProfile/DocProfile.tsx'
-import DoctorAvailability from './pages/DoctorAvailability.tsx'
+const DocDashboard = lazy(() => import('./pages/Doctor/Dashboard'))
+const CreatePrescription = lazy(() => import('./pages/Doctor/CreatePrescription/CreatePrescription.tsx'))
+const PatientsList = lazy(() => import('./pages/Doctor/PatientsList/PatientsList.tsx'))
+const DocProfile = lazy(() => import('./pages/Doctor/DocProfile/DocProfile.tsx'))
+const DoctorAvailability = lazy(() => import('./pages/DoctorAvailability.tsx'))
 
 // Medical Pages
-import MedDashboard from './pages/Medical/Dashboard'
-import FetchPrescriptions from './pages/Medical/fetch-prescriptions/fetch-prescriptions.tsx'
-import MedProfile from './pages/Medical/MedProfile/MedProfile.tsx'
+const MedDashboard = lazy(() => import('./pages/Medical/Dashboard'))
+const FetchPrescriptions = lazy(() => import('./pages/Medical/fetch-prescriptions/fetch-prescriptions.tsx'))
+const MedProfile = lazy(() => import('./pages/Medical/MedProfile/MedProfile.tsx'))
 
 // AI & Booking (Standalone/Shared)
-import BookingDetails from './pages/BookingDetails/BookingDetails.tsx'
-// import BookingDetails from './pages/book/BookingDetails.tsx' // Check this path matches where you saved the new file
+const BookingDetails = lazy(() => import('./pages/BookingDetails/BookingDetails.tsx'))
+
+// Loading Spinner
+const GlobalLoader = () => (
+  <div className="flex items-center justify-center min-h-screen bg-gray-50/50">
+    <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+  </div>
+)
 
 function App() {
 
   return (
     <BrowserRouter>
-    
+      <Suspense fallback={<GlobalLoader />}>
       <Routes>
         <Route path="/about" element={<About />} />
          <Route path="/features" element={<Features />} />
@@ -118,6 +126,7 @@ function App() {
         />
 
       </Routes>
+      </Suspense>
       <Toaster position="top-right" richColors />
     </BrowserRouter>
   )

@@ -1,30 +1,27 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertCircle } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  format, 
-  startOfMonth, 
-  endOfMonth, 
-  startOfWeek, 
-  endOfWeek, 
-  eachDayOfInterval, 
-  isSameMonth, 
-  isSameDay, 
-  addMonths, 
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  isSameMonth,
+  isSameDay,
+  addMonths,
   subMonths,
   getDay,
   isToday
 } from 'date-fns';
-import type { AvailabilityOverride, AvailabilityRule } from '../../types/availability';
-import { cn } from '../../lib/utils';
+import type { AvailabilityOverride, AvailabilityRule } from '@/types/availability';
+import { cn } from '@/lib/utils';
 
 interface AvailabilityCalendarProps {
   rules: AvailabilityRule[];
   overrides: AvailabilityOverride[];
   onDateClick: (date: Date) => void;
-  selectedClinic?: number | null;
 }
 
 export function AvailabilityCalendar({ rules, overrides, onDateClick }: AvailabilityCalendarProps) {
@@ -35,125 +32,104 @@ export function AvailabilityCalendar({ rules, overrides, onDateClick }: Availabi
     end: endOfWeek(endOfMonth(currentMonth)),
   });
 
-  const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
-  const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
-
-  const getDayStatus = (date: Date) => {
+  const getDayStatus = (date: Date): 'available' | 'blocked' | 'override' | null => {
     const dayOfWeek = getDay(date);
 
-    // 1. Check for specific overrides first
-    const fullDayOverride = overrides.find(o => isSameDay(new Date(o.date), date) && !o.startTime);
-    if (fullDayOverride) {
-      return fullDayOverride.status === 'AVAILABLE' ? 'available' : 'unavailable';
+    // Check overrides first
+    const hasOverride = overrides.find(o => isSameDay(new Date(o.date), date));
+    if (hasOverride) {
+      return hasOverride.status === 'UNAVAILABLE' ? 'blocked' : 'override';
     }
 
-    const timeOverrides = overrides.filter(o => isSameDay(new Date(o.date), date) && o.startTime);
-    if (timeOverrides.length > 0) {
-      return timeOverrides.some(o => o.status === 'AVAILABLE') ? 'partially-available' : 'unavailable';
-    }
-
-    // 2. Check weekly rules
+    // Check weekly rules
     const hasRule = rules.some(r => r.dayOfWeek === dayOfWeek);
-    return hasRule ? 'available' : 'unavailable';
-  };
-
-  const getDayLabel = (status: string) => {
-    switch (status) {
-      case 'available': return <Badge className="bg-sage-100 text-sage-700 hover:bg-sage-200 border-sage-200">Available</Badge>;
-      case 'unavailable': return <Badge variant="outline" className="text-muted-foreground">Off</Badge>;
-      case 'partially-available': return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200">Mixed</Badge>;
-      default: return null;
-    }
+    return hasRule ? 'available' : null;
   };
 
   return (
-    <Card className="w-full shadow-lg border-primary/10 overflow-hidden">
-      <CardHeader className="bg-primary/5 border-b flex flex-row items-center justify-between py-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary/10 rounded-lg text-primary">
-            <CalendarIcon size={20} />
-          </div>
-          <div>
-            <CardTitle className="text-xl font-bold tracking-tight">
-              {format(currentMonth, 'MMMM yyyy')}
-            </CardTitle>
-            <p className="text-sm text-muted-foreground font-medium">Monthly Availability View</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={prevMonth} className="h-8 w-8">
+    <div className="rounded-2xl bg-white shadow-sm p-6 border-0">
+      {/* Month header */}
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-xl font-semibold text-slate-900 font-sans">{format(currentMonth, 'MMMM yyyy')}</h3>
+        <div className="flex items-center gap-1.5 bg-[#f2f4f6] rounded-xl p-1">
+          <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="h-8 w-8 rounded-lg hover:bg-white hover:text-slate-900 text-slate-500">
             <ChevronLeft size={16} />
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setCurrentMonth(new Date())} className="font-semibold px-4 h-8">
+          <Button variant="ghost" size="sm" onClick={() => setCurrentMonth(new Date())} className="h-8 text-xs font-semibold px-3 rounded-lg hover:bg-white hover:text-slate-900 text-slate-500">
             Today
           </Button>
-          <Button variant="outline" size="icon" onClick={nextMonth} className="h-8 w-8">
+          <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="h-8 w-8 rounded-lg hover:bg-white hover:text-slate-900 text-slate-500">
             <ChevronRight size={16} />
           </Button>
         </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="grid grid-cols-7 border-b bg-muted/30">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-            <div key={day} className="py-3 text-center text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              {day}
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7">
-          {days.map((day) => {
-            const status = getDayStatus(day);
-            const isCurrentMonth = isSameMonth(day, currentMonth);
-            const isSelectedDay = isToday(day);
-
-            return (
-              <div
-                key={day.toString()}
-                onClick={() => onDateClick(day)}
-                className={cn(
-                  "min-h-[110px] p-2 border-r border-b cursor-pointer transition-all duration-200 hover:bg-muted/50 relative group",
-                  !isCurrentMonth && "bg-muted/10 opacity-40",
-                  isSelectedDay && "bg-primary/5"
-                )}
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <span className={cn(
-                    "text-sm font-semibold flex items-center justify-center w-6 h-6 rounded-full",
-                    isSelectedDay ? "bg-primary text-primary-foreground" : "text-muted-foreground",
-                    isCurrentMonth && !isSelectedDay && "text-foreground"
-                  )}>
-                    {format(day, 'd')}
-                  </span>
-                </div>
-                
-                {isCurrentMonth && (
-                    <div className="space-y-1">
-                        {getDayLabel(status)}
-                        {overrides.some(o => isSameDay(new Date(o.date), day)) && (
-                            <Badge variant="secondary" className="text-[10px] h-4 px-1 flex gap-1 items-center bg-amber-50 text-amber-700 border-amber-200">
-                                <AlertCircle size={8} /> Override
-                            </Badge>
-                        )}
-                    </div>
-                )}
-                
-                <div className="absolute inset-0 border-2 border-primary/0 group-hover:border-primary/20 pointer-events-none transition-all duration-200" />
-              </div>
-            );
-          })}
-        </div>
-      </CardContent>
-      <div className="p-4 bg-muted/5 border-t text-[11px] flex gap-6 font-medium text-muted-foreground">
-          <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded bg-sage-100 border border-sage-200" /> Sage (Available)
-          </div>
-          <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded bg-blue-100 border border-blue-200" /> Blue (Partially)
-          </div>
-          <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded bg-white border border-muted" /> Empty (Blocked)
-          </div>
       </div>
-    </Card>
+
+      {/* Day headers */}
+      <div className="grid grid-cols-7 mb-2">
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+          <div key={day} className="py-2 text-center text-xs font-bold text-slate-400 uppercase tracking-widest">
+            {day}
+          </div>
+        ))}
+      </div>
+
+      {/* Calendar grid */}
+      <div className="grid grid-cols-7 gap-1">
+        {days.map((day) => {
+          const status = getDayStatus(day);
+          const inMonth = isSameMonth(day, currentMonth);
+          const today = isToday(day);
+
+          return (
+            <div
+              key={day.toString()}
+              onClick={() => inMonth && onDateClick(day)}
+              className={cn(
+                "relative min-h-[90px] p-2 rounded-xl transition-all border-0",
+                inMonth ? "cursor-pointer bg-[#f7f9fb] hover:bg-[#d4e3ff] hover:shadow-sm" : "opacity-30 pointer-events-none bg-transparent",
+              )}
+            >
+              {/* Date number */}
+              <span className={cn(
+                "inline-flex items-center justify-center w-7 h-7 rounded-sm text-sm font-semibold mb-1",
+                today && "bg-[#005dac] text-white rounded-full shadow-sm",
+                !today && inMonth && "text-slate-700",
+              )}>
+                {format(day, 'd')}
+              </span>
+
+              {/* Status indicator */}
+              {inMonth && status && (
+                <div className="mt-2 flex flex-col gap-1">
+                  {status === 'available' && (
+                    <div className="h-1.5 w-8 rounded-full bg-[#98f994] mx-1" />
+                  )}
+                  {status === 'blocked' && (
+                    <div className="h-1.5 w-8 rounded-full bg-[#ffdad6] mx-1" />
+                  )}
+                  {status === 'override' && (
+                    <div className="h-1.5 w-8 rounded-full bg-[#a5c8ff] mx-1" />
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap items-center gap-6 mt-8 pt-4 border-t border-dashed border-[#c1c6d4] text-sm text-slate-500 font-medium">
+        <span className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-md bg-[#98f994]" /> Available
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-md bg-[#ffdad6]" /> Blocked
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-md bg-[#a5c8ff]" /> Override
+        </span>
+        <span className="ml-auto text-slate-400 text-xs">Click a date to add an override</span>
+      </div>
+    </div>
   );
 }

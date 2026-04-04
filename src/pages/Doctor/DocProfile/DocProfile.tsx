@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useState, useEffect, type ChangeEvent, type FormEvent } from "react";
 import api from "@/lib/api";
-import { Loader2 } from "lucide-react";
+import { Loader2, ShieldCheck } from "lucide-react";
+import { ImageUpload } from "@/components/ImageUpload";
 
 interface DoctorProfileData {
   firstName: string;
@@ -49,6 +50,7 @@ function DocProfile() {
     newPassword: "",
     confirmPassword: ""
   });
+  const [profileImage, setProfileImage] = useState<string | null>(null);
 
   // --- 1. FETCH PROFILE DATA ---
   useEffect(() => {
@@ -64,16 +66,18 @@ function DocProfile() {
           lastName: user.lastName || "",
           email: user.email || "",
           phone: user.phoneNumber || "",
-          userUniqueId: response.data.userUniqueId || "",
+          userUniqueId: response.data.userUniqueId || "N/A",
           specialization: doctor.specialization || "",
           licenseNumber: doctor.licenseNumber || "",
           hospitalAffiliation: doctor.hospitalAffiliation || "",
-          education: doctor.education || "", // Ensure backend sends this or create a field
+          education: doctor.education || "",
           experience: doctor.experience || "",
           languages: doctor.languages || "",
           consultationFee: doctor.consultationFee || "",
           bio: doctor.bio || "",
         });
+
+        setProfileImage(response.data.profileImageDb || null);
       } catch (error) {
         console.error("Error fetching profile:", error);
         toast.error("Failed to load profile data.");
@@ -149,16 +153,23 @@ function DocProfile() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Doctor Profile</h1>
-          <p className="text-gray-600 mt-1">View and update your professional information</p>
+          <p className="text-gray-600 mt-1">Manage your professional information and public listing</p>
         </div>
-        {formData.userUniqueId && (
-          <div className="mt-4 md:mt-0 flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-lg border border-blue-100">
-            <div className="flex flex-col">
-              <span className="text-xs text-blue-600 font-semibold uppercase">Doctor ID</span>
-              <span className="font-mono font-bold text-blue-900">{formData.userUniqueId}</span>
+        
+        {/* User Unique ID Display & PFP */}
+        <div className="mt-4 md:mt-0 flex flex-col md:flex-row items-center gap-4">
+          {formData.userUniqueId && (
+            <div className="flex items-center gap-2 bg-indigo-50 px-4 py-2 rounded-lg border border-indigo-100 h-fit">
+              <ShieldCheck className="h-5 w-5 text-indigo-600" />
+              <div className="flex flex-col">
+                <span className="text-xs text-indigo-600 font-semibold uppercase">Doctor ID</span>
+                <span className="font-mono font-bold text-indigo-900">{formData.userUniqueId}</span>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+          {/* Image Upload Component */}
+          <ImageUpload currentImageUrl={profileImage} onUploadSuccess={(url) => setProfileImage(url)} />
+        </div>
       </div>
 
       <Tabs defaultValue="personal" className="w-full">

@@ -2,7 +2,8 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button"; 
 import { toast } from "sonner";
 import { Activity, Book, Calendar, FileText, Home, LogOut, Menu, ShoppingBag, User, UserCircle, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import api from "@/lib/api";
 
 type RoleType = 'USER' | 'DOCTOR' | 'MEDICAL';
 
@@ -21,7 +22,14 @@ interface SidebarLink {
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role }) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [profileImg, setProfileImg] = useState<string | null>(null);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        api.get('/api/auth/profile')
+           .then(res => setProfileImg(res.data.profileImageDb || null))
+           .catch(err => console.error(err));
+    }, []);
 
     const handleLogout = () => {
         localStorage.removeItem('token');
@@ -145,9 +153,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role }) => 
                         </nav>
                     </div>
                     <div className="p-4 border-t border-gray-700 bg-black/20">
-                        <div className="flex items-center p-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer">
-                            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm font-bold text-white">
-                                {role?.charAt(0)}
+                        <div className="flex items-center p-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer" onClick={() => navigate(`/${role.toLowerCase()}/profile`)}>
+                            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm font-bold text-white overflow-hidden">
+                                {profileImg ? <img src={profileImg} className="w-full h-full object-cover" alt="Profile" /> : role?.charAt(0)}
                             </div>
                             <div className="ml-3 overflow-hidden">
                                 <p className="text-sm font-medium text-white truncate">My Account</p>

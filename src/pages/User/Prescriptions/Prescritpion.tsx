@@ -1,10 +1,13 @@
 import { useState } from "react";
 import api from "@/lib/api";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
 import { 
   ChevronDown, 
   ChevronUp, 
@@ -12,7 +15,9 @@ import {
   FileText, 
   Filter, 
   Search, 
-  AlertCircle 
+  AlertCircle,
+  Upload,
+  Image as ImageIcon
 } from "lucide-react";
 
 // --- TYPES ---
@@ -61,8 +66,8 @@ const fetchPrescriptions = async (): Promise<FormattedPrescription[]> => {
         medication: med.medication?.name || "Unknown Med",
         dosage: med.dosage,
         frequency: med.frequency,
-        startDate: startDate.toISOString().split('T')[0],
-        endDate: endDate.toISOString().split('T')[0],
+        startDate: format(startDate, 'dd-MM-yy'),
+        endDate: format(endDate, 'dd-MM-yy'),
         doctor: doctorName,
         status: isExpired ? "expired" : "active",
         notes: rx.additionalNotes || "No additional notes provided."
@@ -71,10 +76,19 @@ const fetchPrescriptions = async (): Promise<FormattedPrescription[]> => {
   });
 };
 
+// --- MANUAL PRESCRIPTION FETCH FUNCTION ---
+const fetchMyUploads = async () => {
+  const response = await api.get("/api/upload/prescriptions");
+  return response.data.prescriptions || [];
+};
+
 function Prescription() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedPrescription, setExpandedPrescription] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState('all');
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadNotes, setUploadNotes] = useState('');
+  const queryClient = useQueryClient();
 
   // --- 1. REACT QUERY ---
   const { data: prescriptions = [], isLoading, isError } = useQuery({
@@ -82,6 +96,48 @@ function Prescription() {
     queryFn: fetchPrescriptions,
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
   });
+
+  const { data: myUploads = [], isLoading: isLoadingUploads } = useQuery({
+    queryKey: ['my-uploaded-prescriptions'],
+    queryFn: fetchMyUploads,
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: async (payload: { imageBase64: string; notes: string }) => {
+      const response = await api.post("/api/upload/prescription", payload);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Prescription uploaded successfully!");
+      setUploadFile(null);
+      setUploadNotes("");
+      queryClient.invalidateQueries({ queryKey: ['my-uploaded-prescriptions'] });
+    },
+    onError: () => {
+      toast.error("Failed to upload prescription.");
+    }
+  });
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("File size must be less than 5MB");
+        return;
+      }
+      setUploadFile(file);
+    }
+  };
+
+  const submitUpload = () => {
+    if (!uploadFile) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      uploadMutation.mutate({ imageBase64: base64String, notes: uploadNotes });
+    };
+    reader.readAsDataURL(uploadFile);
+  };
 
   // --- 2. DERIVED STATE (FILTERING) ---
   const filteredPrescriptions = prescriptions.filter(p => {
@@ -204,8 +260,25 @@ function Prescription() {
           </div>
         </div>
 
-        <Card>
-          <CardHeader className="pd-2">
+        <Tabs defaultValue="doctor" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 md:w-auto mt-4 px-2 py-0 border-b-2 rounded-none border-gray-200  !bg-transparent h-auto mb-6 gap-6">
+            <TabsTrigger 
+              value="doctor" 
+              className="text-base px-1 pb-3 text-gray-500 rounded-none border-b-2 border-transparent data-[state=active]:!text-primary data-[state=active]:!border-primary data-[state=active]:font-semibold data-[state=active]:!bg-transparent data-[state=active]:!shadow-none transition-all hover:text-gray-900"
+            >
+              Doctor Issued
+            </TabsTrigger>
+            <TabsTrigger 
+              value="my-uploads" 
+              className="text-base px-1 pb-3 text-gray-500 rounded-none border-b-2 border-transparent data-[state=active]:!text-primary data-[state=active]:!border-primary data-[state=active]:font-semibold data-[state=active]:!bg-transparent data-[state=active]:!shadow-none transition-all hover:text-gray-900"
+            >
+              My Uploads
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="doctor">
+            <Card>
+              <CardHeader className="pd-2">
             <CardTitle className="text-xl flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" />
               Prescription History
@@ -294,6 +367,72 @@ function Prescription() {
             </div>
           </CardContent>
         </Card>
+        </TabsContent>
+
+        <TabsContent value="my-uploads" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl flex items-center gap-2">
+                <Upload className="h-5 w-5 text-primary" />
+                Upload New Prescription
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col md:flex-row gap-4 items-start">
+                <div className="flex-1 w-full space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Select Image (Max 5MB)</label>
+                    <Input type="file" accept="image/*" onChange={handleFileUpload} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
+                    <Input placeholder="E.g., Dermatologist prescription from Jan 2024" value={uploadNotes} onChange={e => setUploadNotes(e.target.value)} />
+                  </div>
+                </div>
+                <div className="w-full md:w-auto h-full flex items-end pt-6 md:pt-0 pb-1 align-bottom self-end">
+                   <Button onClick={submitUpload} disabled={!uploadFile || uploadMutation.isPending} className="w-full text-white bg-primary">
+                    {uploadMutation.isPending ? "Uploading..." : "Upload Prescription"}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl flex items-center gap-2">
+                <ImageIcon className="h-5 w-5 text-primary" />
+                Prescription Gallery
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                {isLoadingUploads ? (
+                  <div className="col-span-3 py-8 text-center text-gray-500">Loading uploads...</div>
+                ) : myUploads.length > 0 ? (
+                  myUploads.map((upload: any) => (
+                    <div key={upload.id} className="border border-gray-200 rounded-lg overflow-hidden flex flex-col bg-white hover:shadow-md transition-shadow">
+                      <div className="h-48 bg-gray-100 flex items-center justify-center p-2">
+                        <img src={upload.imageBase64} alt="Prescription" className="max-h-full object-contain" />
+                      </div>
+                      <div className="p-4 border-t flex flex-col justify-between flex-1">
+                        <p className="text-sm text-gray-700 w-full mb-2">{upload.notes || "No notes provided"}</p>
+                        <p className="text-xs text-gray-400 font-mono mt-auto">{new Date(upload.uploadedAt).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-span-3 text-center py-12">
+                    <ImageIcon className="mx-auto h-12 w-12 text-gray-300 mb-2" />
+                    <h3 className="text-sm font-semibold text-gray-900">No uploads yet</h3>
+                    <p className="text-sm text-gray-500 mt-1">Images you manually upload will appear here.</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        </Tabs>
       </div>
     </div>
   )
