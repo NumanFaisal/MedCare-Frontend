@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Activity, Book, Calendar, FileText, Home, LogOut, Menu, ShoppingBag, User, UserCircle, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
+import logo from "@/assets/logo.png";
 
 type RoleType = 'USER' | 'DOCTOR' | 'MEDICAL';
 
@@ -116,10 +117,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role }) => 
                     <div className="flex h-16 justify-between items-center">
                         <div className="flex items-center cursor-pointer" onClick={() => navigate('/')}>
                             <div className="flex items-center space-x-2">
-                                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-heart-pulse">
-                                        <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-                                    </svg>
+                                <div className="w-8 h-8 flex items-center justify-center">
+                                    <img src={logo} alt="Logo" className="w-full h-full object-contain" />
                                 </div>
                                 <span className="text-xl font-bold bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] bg-clip-text text-transparent">
                                     MedCare
@@ -170,7 +169,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role }) => 
                         <div className="fixed inset-0 bg-secondary/80 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />
                         <div className="fixed inset-y-0 left-0 w-64 bg-secondary shadow-2xl flex flex-col animate-in slide-in-from-left duration-200">
                             <div className="h-16 flex items-center justify-between px-6 border-b border-gray-700">
-                                <span className="font-bold text-lg text-white">MedCare</span>
+                                <div className="flex items-center space-x-2">
+                                    <div className="w-6 h-6 flex items-center justify-center">
+                                        <img src={logo} alt="Logo" className="w-full h-full object-contain" />
+                                    </div>
+                                    <span className="font-bold text-lg text-white">MedCare</span>
+                                </div>
                                 <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={() => setIsMobileMenuOpen(false)}>
                                     <X className="h-6 w-6" />
                                 </Button>

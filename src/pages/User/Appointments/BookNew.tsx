@@ -47,10 +47,10 @@ interface Doctor {
 
 interface BackendDoctor {
   id: number;
-  specialization: string;
+  specialization: string | null;
   hospitalAffiliation: string | null;
-  yearsOfExperience: number;
-  consultationFee: number;
+  yearsOfExperience: number | null;
+  consultationFee: number | null;
   availabilitySchedule: any;
   averageRating: number;
   totalReviews: number;
@@ -58,29 +58,25 @@ interface BackendDoctor {
     firstName: string;
     lastName: string;
     phoneNumber: string | null;
+    profileImageDb: string | null;
   };
 }
 
-const PLACEHOLDER_IMAGES = [
-  "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80&w=300&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=300&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1594824476967-48c8b964273f?q=80&w=300&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80&w=300&auto=format&fit=crop",
-];
+const DEFAULT_DOCTOR_IMAGE = "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80&w=600&auto=format&fit=crop";
 
 // --- API FUNCTION ---
 const fetchDoctors = async (): Promise<Doctor[]> => {
   const response = await api.get<BackendDoctor[]>("/api/users/doctors");
 
-  return response.data.map((doc, index) => ({
+  return response.data.map((doc) => ({
     id: doc.id,
     name: `Dr. ${doc.user.firstName} ${doc.user.lastName}`,
-    specialization: doc.specialization,
+    specialization: doc.specialization || "General Physician",
     clinic: doc.hospitalAffiliation || "Private Clinic",
-    experience: doc.yearsOfExperience,
-    consultationFee: doc.consultationFee,
+    experience: doc.yearsOfExperience || 0,
+    consultationFee: doc.consultationFee || 0,
     availability: doc.availabilitySchedule ? "Available Today" : "Check Availability",
-    photo: PLACEHOLDER_IMAGES[index % PLACEHOLDER_IMAGES.length],
+    photo: doc.user.profileImageDb || DEFAULT_DOCTOR_IMAGE,
     averageRating: doc.averageRating || 0,
     totalReviews: doc.totalReviews || 0,
   }));
@@ -95,7 +91,7 @@ export default function BookNew() {
   const { data: doctors = [], isLoading, isError, error } = useQuery({
     queryKey: ["doctors"],
     queryFn: fetchDoctors,
-    staleTime: 1000 * 60 * 5, // Cache for 5 mins
+    staleTime: 1000 * 30, // Cache for 30 seconds
   });
 
   // --- FILTER LOGIC ---

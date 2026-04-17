@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { Stethoscope, Facebook, Instagram, Linkedin, Youtube } from "lucide-react";
+import { Facebook, Instagram, Linkedin, Youtube } from "lucide-react";
+import logo from "@/assets/logo.png";
 
 function Footer() {
   return (
@@ -12,8 +13,8 @@ function Footer() {
           {/* BRAND */}
           <div>
             <div className="flex items-center space-x-3 mb-6">
-              <div className="w-11 h-11 bg-[#0A6EFF] rounded-xl flex items-center justify-center shadow-md">
-                <Stethoscope className="w-6 h-6 text-white" />
+              <div className="w-11 h-11 flex items-center justify-center">
+                <img src={logo} alt="Logo" className="w-full h-full object-contain" />
               </div>
 
               <span className="text-2xl font-bold text-gray-800">

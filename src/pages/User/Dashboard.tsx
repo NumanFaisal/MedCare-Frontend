@@ -104,6 +104,11 @@ const fetchPrescriptions = async (): Promise<Prescription[]> => {
   });
 };
 
+const fetchProfile = async () => {
+  const { data } = await api.get("/api/auth/profile");
+  return data;
+};
+
 const UserDashboard = () => {
   // --- STATE (UI ONLY) ---
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
@@ -113,6 +118,11 @@ const UserDashboard = () => {
   const [isPrescriptionDialogOpen, setIsPrescriptionDialogOpen] = useState(false);
 
   // --- REACT QUERY ---
+  const { data: profile, isLoading: loadingProfile } = useQuery({
+    queryKey: ['user-profile'],
+    queryFn: fetchProfile,
+  });
+
   const { 
     data: bookedAppointments = [], 
     isLoading: loadingAppts 
@@ -129,15 +139,15 @@ const UserDashboard = () => {
     queryFn: fetchPrescriptions,
   });
 
-  const isLoading = loadingAppts || loadingRx;
+  const isLoading = loadingProfile || loadingAppts || loadingRx;
 
-  // Determine User Name (Fallback logic from original code)
-  const userName = bookedAppointments.length > 0 ? bookedAppointments[0].patient.name : "User";
+  // Determine User Name from Profile
+  const userName = profile?.firstName || "User";
 
   const healthIndicators = [
-    { name: "Blood Pressure", value: "120/80", status: "Normal" },
-    { name: "Heart Rate", value: "72 bpm", status: "Normal" },
-    { name: "Blood Sugar", value: "95 mg/dL", status: "Normal" },
+    { name: "Blood Pressure", value: profile?.patient?.bloodPressure || "—", status: "Normal" },
+    { name: "Heart Rate", value: profile?.patient?.heartRate ? `${profile.patient.heartRate} bpm` : "—", status: "Normal" },
+    { name: "Blood Sugar", value: profile?.patient?.bloodSugar ? `${profile.patient.bloodSugar} mg/dL` : "—", status: "Normal" },
   ];
 
   const handleViewAppointmentDetails = (appointment: Appointment) => {

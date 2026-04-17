@@ -4,6 +4,8 @@ import { Button } from "../components/ui/button";
 import { useState, useEffect } from 'react';
 import api from "@/lib/api";
 
+import logo from "@/assets/logo.png";
+
 function Navbar() {
 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -42,10 +44,9 @@ function Navbar() {
                 {/* Logo */}
                 <Link to="/" className="flex items-center space-x-3 group">
                     <div className="relative">
-                        <div className="w-12 h-12 bg-gradient-to-br from-[#0A6EFF] to-[#2563eb] rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
-                            <Stethoscope className="w-7 h-7 text-white" strokeWidth={2.5} />
+                        <div className="w-12 h-12 flex items-center justify-center transition-all duration-300 group-hover:scale-105">
+                            <img src={logo} alt="Logo" className="w-full h-full object-contain" />
                         </div>
-                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
                     </div>
                     <div className="flex flex-col">
                         <span className="text-2xl font-bold bg-gradient-to-r from-[#0A6EFF] to-[#7E69AB] bg-clip-text text-transparent">

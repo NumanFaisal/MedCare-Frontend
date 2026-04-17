@@ -1,6 +1,8 @@
 import './App.css'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { Toaster } from 'sonner'
+import { useEffect } from 'react'
+import { trackPageView } from './lib/analytics'
 
 import { lazy, Suspense } from 'react'
 
@@ -13,6 +15,17 @@ const About = lazy(() => import('./pages/about/page'))
 const ContactPage = lazy(() => import('./pages/contact/page'))
 import Features from './components/Features'
 import ProtectedRoute from './components/ProtectedRoute'
+import CookieConsent from './components/Legal/CookieConsent'
+import BugReportModal from './components/Feedback/BugReportModal'
+
+// Legal Pages
+const PrivacyPolicy = lazy(() => import('./pages/Legal/PrivacyPolicy'))
+const TermsOfService = lazy(() => import('./pages/Legal/TermsOfService'))
+
+// Auth Verification
+const VerifyEmail = lazy(() => import('./pages/Auth/VerifyEmail'))
+const ForgotPassword = lazy(() => import('./pages/Auth/ForgotPassword'))
+const ResetPassword = lazy(() => import('./pages/Auth/ResetPassword'))
 
 // User Pages
 const UserDashboard = lazy(() => import('./pages/User/Dashboard'))
@@ -44,10 +57,21 @@ const GlobalLoader = () => (
   </div>
 )
 
+const AnalyticsTracker = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    trackPageView(location.pathname + location.search);
+  }, [location]);
+
+  return null;
+};
+
 function App() {
 
   return (
     <BrowserRouter>
+      <AnalyticsTracker />
       <Suspense fallback={<GlobalLoader />}>
       <Routes>
         <Route path="/about" element={<About />} />
@@ -56,6 +80,15 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        
+        {/* LEGAL ROUTES */}
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-of-service" element={<TermsOfService />} />
+
+        {/* AUTH VERIFICATION ROUTES */}
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
         
         {/* STANDALONE ROUTES (Accessible outside the Dashboard Layout if needed) */}
         
@@ -128,6 +161,8 @@ function App() {
       </Routes>
       </Suspense>
       <Toaster position="top-right" richColors />
+      <CookieConsent />
+      <BugReportModal />
     </BrowserRouter>
   )
 }

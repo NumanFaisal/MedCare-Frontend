@@ -99,13 +99,19 @@ const DocDashboard = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<ScheduleData | null>(null);
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
-  const [doctorName] = useState("Numan Faisal"); // In real app, fetch from auth context
 
   // --- REACT QUERY ---
   const { data, isLoading } = useQuery({
     queryKey: ['doctor-dashboard'],
     queryFn: fetchDashboardData,
   });
+
+  const { data: profile } = useQuery({
+    queryKey: ['profile'],
+    queryFn: () => api.get('/api/auth/profile').then(res => res.data),
+  });
+
+  const doctorName = profile ? `${profile.firstName} ${profile.lastName}` : "Doctor";
 
   const recentPatients = data?.recentPatients || [];
   const todaySchedule = data?.todaySchedule || [];

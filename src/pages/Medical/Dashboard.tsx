@@ -27,6 +27,12 @@ interface RecentPrescription {
             userUniqueId: string;
         };
     };
+    doctor?: {
+        user: {
+            firstName: string;
+            lastName: string;
+        };
+    };
     prescribedMedications: Array<{
         dosage: string;
         frequency: string;
@@ -201,7 +207,7 @@ const MedicalDashboard = () => {
                                                     </span>
                                                 </div>
                                                 <div className="text-xs text-gray-500 mt-1 font-medium">
-                                                    ID: {prescription.prescriptionId} • {medications.join(', ')}
+                                                    ID: {prescription.prescriptionId} • Dr. {prescription.doctor?.user.firstName} {prescription.doctor?.user.lastName} • {medications.join(', ')}
                                                 </div>
                                             </div>
                                             <span className="text-xs text-gray-400">{new Date(prescription.date).toLocaleDateString()}</span>

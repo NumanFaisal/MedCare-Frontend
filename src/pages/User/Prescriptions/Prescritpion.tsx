@@ -17,8 +17,15 @@ import {
   Search, 
   AlertCircle,
   Upload,
-  Image as ImageIcon
+  ImageIcon,
+  Maximize2
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // --- TYPES ---
 interface FormattedPrescription {
@@ -88,6 +95,7 @@ function Prescription() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadNotes, setUploadNotes] = useState('');
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   // --- 1. REACT QUERY ---
@@ -411,12 +419,19 @@ function Prescription() {
                   <div className="col-span-3 py-8 text-center text-gray-500">Loading uploads...</div>
                 ) : myUploads.length > 0 ? (
                   myUploads.map((upload: any) => (
-                    <div key={upload.id} className="border border-gray-200 rounded-lg overflow-hidden flex flex-col bg-white hover:shadow-md transition-shadow">
-                      <div className="h-48 bg-gray-100 flex items-center justify-center p-2">
-                        <img src={upload.imageBase64} alt="Prescription" className="max-h-full object-contain" />
+                    <div 
+                      key={upload.id} 
+                      className="border border-gray-200 rounded-lg overflow-hidden flex flex-col bg-white hover:shadow-md transition-all cursor-pointer group"
+                      onClick={() => setSelectedImageUrl(upload.imageBase64)}
+                    >
+                      <div className="h-48 bg-gray-100 flex items-center justify-center p-2 relative">
+                        <img src={upload.imageBase64} alt="Prescription" className="max-h-full object-contain transition-transform group-hover:scale-105" />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                          <Maximize2 className="text-white h-8 w-8" />
+                        </div>
                       </div>
                       <div className="p-4 border-t flex flex-col justify-between flex-1">
-                        <p className="text-sm text-gray-700 w-full mb-2">{upload.notes || "No notes provided"}</p>
+                        <p className="text-sm text-gray-700 w-full mb-2 line-clamp-2">{upload.notes || "No notes provided"}</p>
                         <p className="text-xs text-gray-400 font-mono mt-auto">{new Date(upload.uploadedAt).toLocaleDateString()}</p>
                       </div>
                     </div>
@@ -434,6 +449,20 @@ function Prescription() {
         </TabsContent>
         </Tabs>
       </div>
+      <Dialog open={!!selectedImageUrl} onOpenChange={() => setSelectedImageUrl(null)}>
+        <DialogContent className="max-w-4xl p-0 overflow-hidden bg-transparent border-none">
+          <DialogHeader className="sr-only">
+            <DialogTitle>View Prescription</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center p-4 bg-black/90 min-h-[50vh]">
+            <img 
+              src={selectedImageUrl || ''} 
+              alt="Uploaded Prescription" 
+              className="max-w-full max-h-[85vh] object-contain shadow-2xl" 
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
