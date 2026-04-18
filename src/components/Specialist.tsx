@@ -1,12 +1,13 @@
 import React from 'react';
 import { Facebook, Twitter, Youtube, ArrowRight, Award, CheckCircle2 } from 'lucide-react';
+import api from '../lib/api';
 
 interface SpecialistProps {
-    name: string;
-    experience: string;
-    image: string;
-    bio: string;
-    socialLinks: {
+    name?: string;
+    experience?: string;
+    image?: string;
+    bio?: string;
+    socialLinks?: {
         facebook: string;
         twitter: string;
         youtube: string;
@@ -15,14 +16,60 @@ interface SpecialistProps {
 }
 
 export const Specialist: React.FC<SpecialistProps> = ({
-    name,
-
-    image,
- 
-    socialLinks,
-    credentials,
+    name: propName,
+    image: propImage,
+    socialLinks: propSocialLinks,
+    credentials: propCredentials,
 }) => {
-    
+    const [specialist, setSpecialist] = React.useState<any>(null);
+    const [loading, setLoading] = React.useState(true);
+
+    React.useEffect(() => {
+        const fetchSpecialist = async () => {
+            try {
+                const response = await api.get('/api/users/doctors/featured');
+                setSpecialist(response.data);
+            } catch (error) {
+                console.error('Error fetching featured specialist:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (!propName) {
+            fetchSpecialist();
+        } else {
+            setLoading(false);
+        }
+    }, [propName]);
+
+    if (loading) {
+        return (
+            <div className="w-full py-16 flex justify-center items-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+        );
+    }
+
+    const data = specialist ? {
+        name: `Dr. ${specialist.user.firstName} ${specialist.user.lastName}`,
+        image: specialist.user.profileImageDb,
+        bio: specialist.professionalBio,
+        experience: `${specialist.yearsOfExperience}+`,
+        socialLinks: {
+            facebook: specialist.facebook || '#',
+            twitter: specialist.twitter || '#',
+            youtube: specialist.youtube || '#',
+        },
+        credentials: specialist.specialization?.join(', '),
+    } : {
+        name: propName || 'Dr. Sarah Johnson',
+        image: propImage || 'https://img.freepik.com/free-photo/woman-doctor-wearing-lab-coat-with-stethoscope-isolated_1303-29791.jpg?semt=ais_hybrid&w=740&q=80',
+        bio: 'Lorem, ipsum dolor sit amet consectetur adipisicing elit. Corrupti possimus numquam dolore voluptatem exercitationem, voluptate eum reprehenderit sapiente tenetur porro enim expedita odio provident doloribus at perspiciatis illum neque officia!',
+        experience: '30+',
+        socialLinks: propSocialLinks || { facebook: '#', twitter: '#', youtube: '#' },
+        credentials: propCredentials,
+    };
 
     return (
         <section className="w-full py-16 md:py-24 px-4 relative overflow-hidden">
@@ -38,8 +85,8 @@ export const Specialist: React.FC<SpecialistProps> = ({
                             
                             <div className="relative overflow-hidden rounded-2xl transform group-hover:scale-[1.02] transition-all duration-500">
                                 <img
-                                    src={image || "https://img.freepik.com/free-photo/woman-doctor-wearing-lab-coat-with-stethoscope-isolated_1303-29791.jpg?semt=ais_hybrid&w=740&q=80"}
-                                    alt={name}
+                                    src={data.image || "https://img.freepik.com/free-photo/woman-doctor-wearing-lab-coat-with-stethoscope-isolated_1303-29791.jpg?semt=ais_hybrid&w=740&q=80"}
+                                    alt={data.name}
                                     className="w-full h-[400px] md:h-[500px] object-cover rounded-2xl shadow-2xl"
                                 />
                                 {/* Gradient overlay */}
@@ -59,9 +106,9 @@ export const Specialist: React.FC<SpecialistProps> = ({
                                 {/* Social Media Icons - Vertical Stack */}
                                 <div className="flex flex-col gap-6 pt-2 from black">
                                     {[
-                                        { icon: Facebook, url: socialLinks.facebook, label: 'Facebook', color: 'hover:text-black ' },
-                                        { icon: Twitter, url: socialLinks.twitter, label: 'Twitter', color: ' hover:text-black' },
-                                        { icon: Youtube, url: socialLinks.youtube, label: 'YouTube', color: ' hover:text-black' },
+                                        { icon: Facebook, url: data.socialLinks.facebook, label: 'Facebook', color: 'hover:text-black ' },
+                                        { icon: Twitter, url: data.socialLinks.twitter, label: 'Twitter', color: ' hover:text-black' },
+                                        { icon: Youtube, url: data.socialLinks.youtube, label: 'YouTube', color: ' hover:text-black' },
                                     ].map((social, idx) => (
                                         <a
                                             key={idx}
@@ -95,20 +142,20 @@ export const Specialist: React.FC<SpecialistProps> = ({
 
                                     {/* Doctor Name */}
                                     <h4 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-500 mb-2 mt-2">
-                                        Dr. Sarah Johnson
+                                        {data.name}
                                     </h4>
                                     {/* Bio with Vertical Separator */}
                                             <div className="flex gap-4 md:gap-2 mb-6 items-center text-gray-500 justify-center">
                                                                <div className="w-1 bg-gradient-to-b  min-h-[100px] rounded-full shadow-lg"></div>
-                                                        <p> Lorem, ipsum dolor sit amet consectetur adipisicing elit. Corrupti possimus numquam dolore voluptatem exercitationem, voluptate eum reprehenderit sapiente tenetur porro enim expedita odio provident doloribus at perspiciatis illum neque officia!</p>
+                                                        <p> {data.bio}</p>
 
                                             </div>
 
                                     {/* Credentials */}
-                                    {credentials && (
+                                    {data.credentials && (
                                         <p className="text-blue-600 text-base md:text-lg font-semibold mb-5 flex items-center gap-2">
                                             <Award className="w-4 h-4" />
-                                            {credentials}
+                                            {data.credentials}
                                         </p>
                                     )}
                                 
@@ -118,7 +165,7 @@ export const Specialist: React.FC<SpecialistProps> = ({
                                         <div className="flex items-center gap-4">
                                             {/* Years Number */}
                                             <div className="text-5xl md:text-4xl lg:text-7xl font-bold group-hover:scale-110 transition-transform">
-                                                30+
+                                                {data.experience}
                                             </div>
                                             {/* Years of Experience Text */}
                                             <div className="text-sm md:text-base lg:text-lg font-semibold text-white leading-tight">
