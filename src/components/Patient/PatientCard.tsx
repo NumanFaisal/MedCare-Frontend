@@ -120,7 +120,7 @@ function PatientCard({ patient, expandedPatient, toggleExpand }: PatientCardProp
                                     ? new Date(patient.nextAppointment).toLocaleDateString()
                                     : 'Not scheduled'}
                             </dd>
-                        </div>
+                        </div>                        
                         <div className="sm:col-span-3 border-t border-gray-300 pt-3 mt-2">
                             <div className="flex flex-wrap gap-3">
                                 <Button

@@ -9,4 +9,6 @@ export interface PatientType {
     nextAppointment: string | null;
     phone: string;
     email: string;
+    bloodPressure?: string;
+    heartRate?: string;
 }

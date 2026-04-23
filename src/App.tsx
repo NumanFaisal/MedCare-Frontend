@@ -39,6 +39,7 @@ const AnalysisReport = lazy(() => import('./pages/User/AnalysisReport.tsx'))
 const DocDashboard = lazy(() => import('./pages/Doctor/Dashboard'))
 const CreatePrescription = lazy(() => import('./pages/Doctor/CreatePrescription/CreatePrescription.tsx'))
 const PatientsList = lazy(() => import('./pages/Doctor/PatientsList/PatientsList.tsx'))
+const DoctorAppointments = lazy(() => import('./pages/Doctor/DoctorAppointments.tsx'))
 const DocProfile = lazy(() => import('./pages/Doctor/DocProfile/DocProfile.tsx'))
 const DoctorAvailability = lazy(() => import('./pages/DoctorAvailability.tsx'))
 
@@ -134,6 +135,7 @@ function App() {
                   <Route index element={<DocDashboard />} />
                   <Route path="create-prescription" element={<CreatePrescription />} />
                   <Route path="patients" element={<PatientsList />} />
+                  <Route path="appointments" element={<DoctorAppointments />} />
                   <Route path="profile" element={<DocProfile />} />
                   <Route path="availability" element={<DoctorAvailability />} />
                 </Routes>

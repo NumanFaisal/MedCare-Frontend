@@ -31,6 +31,8 @@ const fetchPatients = async (): Promise<PatientType[]> => {
       phone: p.user.phoneNumber || "N/A",
       email: p.user.email || "N/A",
       bloodGroup: p.bloodType || "N/A",
+      bloodPressure: p.bloodPressure || "N/A",
+      heartRate: p.heartRate || "N/A",
       lastVisit: p.lastVisit || new Date().toISOString(),
       status: "Active",
       address: p.streetAddress || "No address provided"

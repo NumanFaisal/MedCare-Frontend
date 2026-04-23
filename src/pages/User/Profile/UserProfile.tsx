@@ -20,6 +20,8 @@ interface UserProfileData {
 
   // Patient/Profile Table Fields
   dateOfBirth: string;
+  age: string;
+  gender: string;
   streetAddress: string;
   city: string;
   state: string;
@@ -30,6 +32,9 @@ interface UserProfileData {
   allergies: string;
   medicalConditions: string;
   currentMedications: string;
+  bloodPressure: string;
+  heartRate: string;
+  bloodSugar: string;
 }
 
 function UserProfile() {
@@ -44,6 +49,8 @@ function UserProfile() {
     phone: "",
     userUniqueId: "",
     dateOfBirth: "",
+    age: "",
+    gender: "",
     streetAddress: "",
     city: "",
     state: "",
@@ -53,7 +60,10 @@ function UserProfile() {
     bloodType: "",
     allergies: "",
     medicalConditions: "",
-    currentMedications: ""
+    currentMedications: "",
+    bloodPressure: "",
+    heartRate: "",
+    bloodSugar: ""
   });
   const [profileImage, setProfileImage] = useState<string | null>(null);
 
@@ -76,6 +86,8 @@ function UserProfile() {
 
           // Patient Profile Info
           dateOfBirth: profile.dateOfBirth ? new Date(profile.dateOfBirth).toISOString().split('T')[0] : "",
+          age: profile.age != null ? String(profile.age) : "",
+          gender: profile.gender || "",
           streetAddress: profile.streetAddress || "",
           city: profile.city || "",
           state: profile.state || "",
@@ -85,7 +97,10 @@ function UserProfile() {
           bloodType: profile.bloodType || "",
           allergies: Array.isArray(profile.allergies) ? profile.allergies.join(", ") : (profile.allergies || ""),
           medicalConditions: Array.isArray(profile.medicalConditions) ? profile.medicalConditions.join(", ") : (profile.medicalConditions || ""),
-          currentMedications: Array.isArray(profile.currentMedications) ? profile.currentMedications.join(", ") : (profile.currentMedications || "")
+          currentMedications: Array.isArray(profile.currentMedications) ? profile.currentMedications.join(", ") : (profile.currentMedications || ""),
+          bloodPressure: profile.bloodPressure || "",
+          heartRate: profile.heartRate || "",
+          bloodSugar: profile.bloodSugar || ""
         });
 
         setProfileImage(data.profileImageDb || null);
@@ -101,7 +116,29 @@ function UserProfile() {
     fetchProfile();
   }, []);
 
-  // --- 2. HANDLE INPUT CHANGE ---
+  // --- 2. AUTOMATIC AGE CALCULATION ---
+  useEffect(() => {
+    if (formData.dateOfBirth) {
+      const birthDate = new Date(formData.dateOfBirth);
+      const today = new Date();
+      
+      // Basic validation: ignore future dates
+      if (birthDate > today) return;
+
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      
+      if (age >= 0 && String(age) !== formData.age) {
+        setFormData(prev => ({ ...prev, age: String(age) }));
+      }
+    }
+  }, [formData.dateOfBirth]);
+
+  // --- 3. HANDLE INPUT CHANGE ---
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     setFormData(prev => ({ ...prev, [id]: value }));
@@ -116,6 +153,8 @@ function UserProfile() {
 
       const payload = {
         dateOfBirth: formData.dateOfBirth ? new Date(formData.dateOfBirth).toISOString() : undefined,
+        age: formData.age ? parseInt(formData.age, 10) : undefined,
+        gender: formData.gender || undefined,
         streetAddress: formData.streetAddress,
         state: formData.state,
         city: formData.city,
@@ -126,6 +165,9 @@ function UserProfile() {
         allergies: formData.allergies ? formData.allergies.split(',').map(s => s.trim()) : [],
         medicalConditions: formData.medicalConditions ? formData.medicalConditions.split(',').map(s => s.trim()) : [],
         currentMedications: formData.currentMedications ? formData.currentMedications.split(',').map(s => s.trim()) : [],
+        bloodPressure: formData.bloodPressure || undefined,
+        heartRate: formData.heartRate || undefined,
+        bloodSugar: formData.bloodSugar || undefined,
       };
 
       await api.patch("/api/profile/update", payload);
@@ -232,6 +274,41 @@ function UserProfile() {
                     </div>
 
                     <div className="space-y-2">
+                      <Label htmlFor="age">Age</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        className="w-full" id="age"
+                        placeholder="e.g. 28"
+                        value={formData.age}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="gender">Gender</Label>
+                      <div className="relative">
+                        <select
+                          id="gender"
+                          value={formData.gender}
+                          onChange={(e) => setFormData(prev => ({ ...prev, gender: e.target.value }))}
+                          className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 pr-8 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 appearance-none cursor-pointer"
+                        >
+                          <option value="">Select gender</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Other">Other</option>
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                          <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
                       <Label htmlFor="streetAddress">Street Address</Label>
                       <Input
                         className="w-full" id="streetAddress"
@@ -311,46 +388,110 @@ function UserProfile() {
               </CardHeader>
               <form onSubmit={handleProfileUpdate}>
                 <CardContent className="space-y-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="bloodType">Blood Type</Label>
-                    <Input
-                      className="w-full" id="bloodType"
-                      value={formData.bloodType}
-                      onChange={handleInputChange}
-                      placeholder="e.g. O+"
-                    />
+
+                  {/* Vital Signs */}
+                  <div>
+                    <h3 className="text-base font-semibold text-gray-800 mb-4 pb-2 border-b">Vital Signs</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="bloodPressure">Blood Pressure</Label>
+                        <Input
+                          className="w-full" id="bloodPressure"
+                          value={formData.bloodPressure}
+                          onChange={handleInputChange}
+                          placeholder="e.g. 120/80"
+                        />
+                        <p className="text-xs text-gray-400">mmHg (systolic/diastolic)</p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="heartRate">Heart Rate</Label>
+                        <Input
+                          className="w-full" id="heartRate"
+                          value={formData.heartRate}
+                          onChange={handleInputChange}
+                          placeholder="e.g. 72"
+                        />
+                        <p className="text-xs text-gray-400">Beats per minute (bpm)</p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="bloodSugar">Blood Sugar</Label>
+                        <Input
+                          className="w-full" id="bloodSugar"
+                          value={formData.bloodSugar}
+                          onChange={handleInputChange}
+                          placeholder="e.g. 90"
+                        />
+                        <p className="text-xs text-gray-400">mg/dL (fasting)</p>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="allergies">Allergies</Label>
-                    <Input
-                      className="w-full" id="allergies"
-                      value={formData.allergies}
-                      onChange={handleInputChange}
-                    />
-                    <p className="text-sm text-gray-500">Separate multiple allergies with commas</p>
+                  {/* General Medical Info */}
+                  <div>
+                    <h3 className="text-base font-semibold text-gray-800 mb-4 pb-2 border-b">General Medical Info</h3>
+                    <div className="space-y-5">
+                      <div className="space-y-2">
+                        <Label htmlFor="bloodType">Blood Type</Label>
+                        <div className="relative">
+                          <select
+                            id="bloodType"
+                            value={formData.bloodType}
+                            onChange={(e) => setFormData(prev => ({ ...prev, bloodType: e.target.value }))}
+                            className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 pr-8 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 appearance-none cursor-pointer"
+                          >
+                            <option value="">Select blood type</option>
+                            <option value="A+">A+</option>
+                            <option value="A-">A-</option>
+                            <option value="B+">B+</option>
+                            <option value="B-">B-</option>
+                            <option value="AB+">AB+</option>
+                            <option value="AB-">AB-</option>
+                            <option value="O+">O+</option>
+                            <option value="O-">O-</option>
+                          </select>
+                          <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                            <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="allergies">Allergies</Label>
+                        <Input
+                          className="w-full" id="allergies"
+                          value={formData.allergies}
+                          onChange={handleInputChange}
+                          placeholder="e.g. Penicillin, Peanuts"
+                        />
+                        <p className="text-xs text-gray-400">Separate multiple allergies with commas</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="medicalConditions">Medical Conditions</Label>
+                        <Input
+                          className="w-full" id="medicalConditions"
+                          value={formData.medicalConditions}
+                          onChange={handleInputChange}
+                          placeholder="e.g. Diabetes, Hypertension"
+                        />
+                        <p className="text-xs text-gray-400">Separate multiple conditions with commas</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="currentMedications">Current Medications</Label>
+                        <Input
+                          className="w-full" id="currentMedications"
+                          value={formData.currentMedications}
+                          onChange={handleInputChange}
+                          placeholder="e.g. Metformin 500mg, Aspirin"
+                        />
+                        <p className="text-xs text-gray-400">Separate multiple medications with commas</p>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="medicalConditions">Medical Conditions</Label>
-                    <Input
-                      className="w-full" id="medicalConditions"
-                      value={formData.medicalConditions}
-                      onChange={handleInputChange}
-                    />
-                    <p className="text-sm text-gray-500">Separate multiple conditions with commas</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="currentMedications">Current Medications</Label>
-                    <Input
-                      className="w-full" id="currentMedications"
-                      value={formData.currentMedications}
-                      onChange={handleInputChange}
-                      placeholder="Enter current medications..."
-                    />
-                    <p className="text-sm text-gray-500">Separate multiple medications with commas</p>
-                  </div>
                 </CardContent>
                 <CardFooter className="flex justify-end">
                   <Button className="border bg-primary text-white hover:bg-primary/90" type="submit" disabled={saving}>

@@ -3,12 +3,10 @@ import { Link } from "react-router-dom";
 import api from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { 
-  ChevronLeft, ChevronRight, ArrowRight, MapPin, 
-  Clock, IndianRupee, Stethoscope, AlertCircle, Star 
+  ChevronLeft, ChevronRight, ArrowRight, 
+  Star, MapPin 
 } from 'lucide-react';
-import { Skeleton } from "@/components/ui/skeleton";
 
-// --- TYPES ---
 type DoctorType = {
   id: string;
   name: string;
@@ -17,23 +15,16 @@ type DoctorType = {
   location: string;
   rating: number;
   totalReviews: number;
-  image: string;
+  image: string | null;
   hospital: string;
   consultationFee: number;
 };
 
-const PLACEHOLDER_IMAGES = [
-  'https://img.freepik.com/free-photo/woman-doctor-wearing-lab-coat-with-stethoscope-isolated_1303-29791.jpg?semt=ais_hybrid&w=740&q=80',
-  'https://img.freepik.com/free-photo/portrait-doctor_144627-39379.jpg?semt=ais_hybrid&w=740&q=80',
-  'https://img.freepik.com/free-photo/doctor-offering-medical-teleconsultation_23-2149329007.jpg?w=740',
-];
+const DEFAULT_AVATAR = "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png";
 
-// --- API FETCH FUNCTION ---
 const fetchDoctors = async (): Promise<DoctorType[]> => {
   const response = await api.get("/api/users/doctors");
-  
-  // Map Backend Data -> UI Data (ALL REAL — no hardcoded values)
-  return response.data.map((doc: any, index: number) => ({
+  return response.data.map((doc: any) => ({
     id: doc.id.toString(),
     name: `Dr. ${doc.user.firstName} ${doc.user.lastName}`,
     specialty: doc.specialization,
@@ -41,7 +32,7 @@ const fetchDoctors = async (): Promise<DoctorType[]> => {
     location: doc.hospitalAffiliation || "Private Clinic",
     rating: doc.averageRating || 0,
     totalReviews: doc.totalReviews || 0,
-    image: PLACEHOLDER_IMAGES[index % PLACEHOLDER_IMAGES.length],
+    image: doc.user?.profileImageDb || null,
     hospital: doc.hospitalAffiliation || "Private Clinic",
     consultationFee: doc.consultationFee,
   }));
@@ -52,11 +43,10 @@ function DoctorSearch() {
   const carouselRef = useRef<HTMLDivElement>(null);
   const doctorsPerView = 4;
 
-  // --- REACT QUERY ---
   const { data: doctors = [], isLoading, isError } = useQuery({
     queryKey: ['top-doctors'],
     queryFn: fetchDoctors,
-    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
+    staleTime: 1000 * 60 * 10,
   });
 
   const maxIndex = Math.max(0, doctors.length - doctorsPerView);
@@ -64,218 +54,133 @@ function DoctorSearch() {
   const scrollCarousel = (direction: 'left' | 'right') => {
     if (carouselRef.current) {
       const cardWidth = carouselRef.current.offsetWidth / doctorsPerView;
-      const scrollAmount = cardWidth * doctorsPerView;
-
       if (direction === 'left') {
-        const newIndex = Math.max(0, currentIndex - 1);
-        setCurrentIndex(newIndex);
-        carouselRef.current.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+        setCurrentIndex(prev => Math.max(0, prev - 1));
+        carouselRef.current.scrollBy({ left: -cardWidth, behavior: 'smooth' });
       } else {
-        const newIndex = Math.min(maxIndex, currentIndex + 1);
-        setCurrentIndex(newIndex);
-        carouselRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+        setCurrentIndex(prev => Math.min(maxIndex, prev + 1));
+        carouselRef.current.scrollBy({ left: cardWidth, behavior: 'smooth' });
       }
     }
   };
 
-  const handleViewProfile = (doctorId: string) => {
-    console.log('Viewing profile for doctor:', doctorId);
-  };
+  if (isLoading) return <div className="h-96 flex items-center justify-center text-slate-400 font-medium">Loading Professionals...</div>;
+  if (isError) return null;
 
-  // --- LOADING STATE (SKELETON CAROUSEL) ---
-  if (isLoading) {
-    return (
-      <section className="py-20 px-4 bg-white">
-        <div className="container mx-auto max-w-7xl">
-          <Skeleton className="h-10 w-96 mb-10 bg-slate-200" />
-          
-          <div className="flex gap-6 overflow-hidden">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="flex-shrink-0 w-full sm:w-1/2 lg:w-1/4">
-                <div className="bg-[#F8FAFC] rounded-2xl border border-gray-100 h-full flex flex-col p-0 overflow-hidden">
-                  <div className="p-3 pb-0">
-                    <Skeleton className="h-56 w-full rounded-xl bg-slate-200" />
-                  </div>
-                  <div className="p-5 pt-4 space-y-4 flex-grow">
-                    <div className="space-y-2">
-                      <Skeleton className="h-6 w-3/4 bg-slate-200" />
-                      <Skeleton className="h-4 w-1/2 bg-slate-200" />
-                    </div>
-                    <Skeleton className="h-4 w-2/3 bg-slate-200" />
-                    <div className="flex gap-2">
-                      <Skeleton className="h-6 w-16 bg-slate-200" />
-                      <Skeleton className="h-6 w-16 bg-slate-200" />
-                    </div>
-                    <Skeleton className="h-10 w-full rounded-lg bg-slate-200 mt-auto" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  // --- ERROR STATE ---
-  if (isError) {
-    return (
-      <section className="py-20 px-4 bg-white flex justify-center items-center">
-         <div className="text-center text-red-500 flex flex-col items-center gap-2">
-           <AlertCircle className="h-8 w-8" />
-           <p>Failed to load professionals.</p>
-         </div>
-      </section>
-    );
-  }
-
-  if (doctors.length === 0) return null;
-
-  // --- MAIN RENDER ---
   return (
-    <section className="py-20 px-4 bg-white">
+    <section className="py-20 px-6 bg-white font-sans">
       <div className="container mx-auto max-w-7xl">
-
-        {/* Heading */}
-        <h2 className="text-3xl md:text-4xl font-bold mb-10">
+        
+        {/* Title based on your image */}
+        <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-12 tracking-tight">
           And other top <span className="text-[#0A6EFF]">Professionals.</span>
         </h2>
 
-        {/* Carousel */}
         <div className="relative">
           <div
             ref={carouselRef}
-            className="flex gap-6 overflow-x-hidden scroll-smooth"
-            style={{ scrollbarWidth: "none" }}
+            className="flex gap-6 overflow-x-hidden scroll-smooth pb-10"
           >
             {doctors.map((doctor) => (
-              <div
-                key={doctor.id}
-                className="flex-shrink-0 w-full sm:w-1/2 lg:w-1/4"
+              <div 
+                key={doctor.id} 
+                className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]"
               >
-                <div className="bg-[#F8FAFC] rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-all h-full flex flex-col">
-
-                  {/* Image */}
-                  <div className="h-56 bg-white rounded-2xl p-3 pb-0">
+                {/* White Rounded Card Layout */}
+                <div className="bg-[#F8FAFC] rounded-[32px] p-4 border border-gray-100 hover:shadow-xl hover:bg-white transition-all duration-300 group">
+                  
+                  {/* Square Image with high-quality rounded corners */}
+                  <div className="aspect-square w-full rounded-[24px] overflow-hidden mb-5 shadow-sm">
                     <img
-                      src={doctor.image}
+                      src={doctor.image || DEFAULT_AVATAR}
                       alt={doctor.name}
-                      className="w-full h-full object-cover rounded-xl object-top"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   </div>
 
-                  {/* Info Section */}
-                  <div className="flex flex-col px-5 pb-5 pt-4 flex-grow">
-                    
-                    {/* Name & Specialty */}
-                    <div className="mb-2">
-                      <h3 className="font-bold text-gray-900 text-lg truncate">
-                        {doctor.name}
-                      </h3>
-                      <div className="flex items-center gap-1 text-[#0A6EFF] text-sm font-medium">
-                        <Stethoscope className="h-3 w-3" />
-                        {doctor.specialty}
+                  {/* Content Area */}
+                  <div className="px-1 pb-2">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-grow pr-2">
+                        <h3 className="text-[17px] font-bold text-slate-900 leading-tight truncate">
+                          {doctor.name}
+                        </h3>
+                        <p className="text-slate-400 text-[11px] font-semibold mt-1 uppercase tracking-wider">
+                          {doctor.specialty}
+                        </p>
+                        
+                        {/* Real Details Stack */}
+                        <div className="space-y-1.5 mt-3">
+                           <div className="flex items-center gap-1.5 text-[12px] text-slate-500 font-medium">
+                              <MapPin className="w-3.5 h-3.5 text-[#0A6EFF] shrink-0" />
+                              <span className="truncate">{doctor.hospital}</span>
+                           </div>
+                           <div className="flex items-center gap-3 mt-2">
+                              <span className="text-[11px] font-bold bg-white text-slate-700 px-2.5 py-1 rounded-lg border border-gray-100 shadow-sm">
+                                {doctor.experience} Yrs Exp.
+                              </span>
+                              <span className="text-[12px] font-bold text-[#0A6EFF]">
+                                ₹{doctor.consultationFee}
+                              </span>
+                           </div>
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Rating */}
-                    <div className="flex items-center gap-1.5 mb-3">
-                      <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-                      <span className="text-sm font-bold text-gray-800">
-                        {doctor.rating > 0 ? doctor.rating.toFixed(1) : 'New'}
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        ({doctor.totalReviews} {doctor.totalReviews === 1 ? 'review' : 'reviews'})
-                      </span>
-                    </div>
-
-                    {/* Hospital & Location */}
-                    <div className="flex items-start gap-1.5 text-xs text-gray-500 mb-4">
-                        <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                        <span className="line-clamp-1">{doctor.hospital}</span>
-                    </div>
-
-                    {/* Stats: Experience & Fee */}
-                    <div className="flex items-center gap-2 mb-4">
-                        <div className="bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-xs font-semibold flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {doctor.experience}+ Yrs
-                        </div>
-                        <div className="bg-green-50 text-green-700 px-2 py-1 rounded-md text-xs font-semibold flex items-center gap-1">
-                            <IndianRupee className="h-3 w-3" />
-                            {doctor.consultationFee}
-                        </div>
-                    </div>
-
-                    {/* Book Button */}
-                    <div className="mt-auto">
-                      <Link to={`/book/${doctor.id}`}>
-                        <button
-                          onClick={() => handleViewProfile(doctor.id)}
-                          className="w-full h-10 rounded-lg bg-[#0A6EFF] hover:bg-[#2563eb] flex items-center justify-center text-white text-sm font-medium transition gap-2"
-                        >
-                          Book Now <ArrowRight className="w-4 h-4" />
-                        </button>
+                      {/* Default Blue Action Button */}
+                      <Link 
+                        to={`/book/${doctor.id}`}
+                        className="bg-[#0A6EFF] hover:bg-[#085ad4] text-white p-3 rounded-2xl transition-all shadow-md hover:shadow-blue-200 active:scale-90 flex-shrink-0"
+                      >
+                        <ArrowRight className="w-5 h-5" />
                       </Link>
                     </div>
 
+                    {/* Bottom Rating Info */}
+                    <div className="flex items-center gap-1 mt-5 pt-3 border-t border-slate-100">
+                      <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+                      <span className="text-[12px] font-bold text-slate-800">
+                        {doctor.rating > 0 ? doctor.rating.toFixed(1) : "New"}
+                      </span>
+                      <span className="text-[11px] text-slate-400 font-medium ml-auto">
+                        {doctor.totalReviews} reviews
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Controls */}
-          {doctors.length > doctorsPerView && (
-            <div className="flex items-center justify-center gap-4 mt-8">
-              <button
-                onClick={() => scrollCarousel("left")}
-                disabled={currentIndex === 0}
-                className={`w-10 h-10 rounded-full flex items-center justify-center border transition ${currentIndex === 0
-                  ? "border-gray-200 text-gray-300"
-                  : "border-gray-300 hover:bg-gray-100"
-                  }`}
-              >
-                <ChevronLeft />
-              </button>
-
-              <div className="flex gap-2">
-                {Array.from({
-                  length: Math.ceil(doctors.length / doctorsPerView),
-                }).map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => {
-                      setCurrentIndex(index);
-                      if (carouselRef.current) {
-                        const cardWidth =
-                          carouselRef.current.offsetWidth / doctorsPerView;
-                        carouselRef.current.scrollTo({
-                          left: index * cardWidth * doctorsPerView,
-                          behavior: "smooth",
-                        });
-                      }
-                    }}
-                    className={`w-3 h-3 rounded-full transition ${Math.floor(currentIndex) === index
-                      ? "bg-[#0A6EFF]"
-                      : "bg-gray-300"
-                      }`}
-                  />
-                ))}
-              </div>
-
-              <button
-                onClick={() => scrollCarousel("right")}
-                disabled={currentIndex >= maxIndex}
-                className={`w-10 h-10 rounded-full flex items-center justify-center border transition ${currentIndex >= maxIndex
-                  ? "border-gray-200 text-gray-300"
-                  : "border-gray-300 hover:bg-gray-100"
-                  }`}
-              >
-                <ChevronRight />
-              </button>
+          {/* Navigation Controls in Blue */}
+          <div className="flex items-center gap-4 mt-4 px-2">
+            <button 
+              onClick={() => scrollCarousel('left')}
+              disabled={currentIndex === 0}
+              className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center hover:bg-slate-50 disabled:opacity-30 transition-all active:scale-90"
+            >
+              <ChevronLeft className="w-5 h-5 text-slate-700" />
+            </button>
+            
+            {/* Pagination Dots (Blue) */}
+            <div className="flex gap-2">
+              {Array.from({ length: Math.min(Math.ceil(doctors.length / doctorsPerView), 5) }).map((_, i) => (
+                <div 
+                  key={i} 
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    currentIndex === i ? 'w-5 bg-[#0A6EFF]' : 'w-1.5 bg-slate-200'
+                  }`} 
+                />
+              ))}
             </div>
-          )}
+
+            <button 
+              onClick={() => scrollCarousel('right')}
+              disabled={currentIndex >= maxIndex}
+              className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center hover:bg-slate-50 disabled:opacity-30 transition-all active:scale-90"
+            >
+              <ChevronRight className="w-5 h-5 text-slate-700" />
+            </button>
+          </div>
         </div>
       </div>
     </section>

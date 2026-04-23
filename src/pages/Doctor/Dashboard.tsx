@@ -41,6 +41,8 @@ interface DashboardData {
   stats: {
     todayCount: number;
     totalAppointments: number;
+    totalPatients: number;
+    prescriptions: number;
   };
 }
 
@@ -61,14 +63,14 @@ const fetchDashboardData = async (): Promise<DashboardData> => {
       appointmentId: appt.id,
       name: `${appt.patient.user.firstName} ${appt.patient.user.lastName}`,
       age: age > 0 ? age : "N/A",
-      gender: appt.patient.bloodType ? "Known" : "N/A",
+      gender: appt.patient.gender ? "Known" : "N/A",
       bloodGroup: appt.patient.bloodType || "N/A",
       phone: appt.patient.user.phoneNumber,
       lastVisit: appt.appointmentDate,
       reason: appt.notes || "Routine Checkup",
       status: appt.status,
-      bloodPressure: "120/80", // Placeholder
-      heartRate: 72, // Placeholder
+      bloodPressure: appt.patient.bloodPressure || "N/A",
+      heartRate: appt.patient.heartRate || "N/A",
     };
   }).slice(0, 5);
 
@@ -83,12 +85,21 @@ const fetchDashboardData = async (): Promise<DashboardData> => {
       type: appt.notes || "General"
     }));
 
+  const totalAppointments = rawAppointments.length;
+  const uniquePatientCount = new Set(rawAppointments.map((appt: any) => appt.patientId)).size;
+
+  const prescriptionsCount = typeof response.data.prescriptionCount === 'number' 
+    ? response.data.prescriptionCount 
+    : 0;
+
   return {
     recentPatients,
     todaySchedule,
     stats: {
       todayCount: todaySchedule.length,
-      totalAppointments: rawAppointments.length
+      totalAppointments: totalAppointments,
+      totalPatients: uniquePatientCount,
+      prescriptions: prescriptionsCount,
     }
   };
 };
@@ -115,7 +126,7 @@ const DocDashboard = () => {
 
   const recentPatients = data?.recentPatients || [];
   const todaySchedule = data?.todaySchedule || [];
-  const stats = data?.stats || { todayCount: 0, totalAppointments: 0 };
+  const stats = data?.stats || { todayCount: 0, totalAppointments: 0, totalPatients: 0, prescriptions: 0 };
 
   const handleViewDetails = (patient: PatientData) => {
     setSelectedPatient(patient);
@@ -217,13 +228,13 @@ const DocDashboard = () => {
             </div>
           </CardContent>
         </Card>
-        {/* Static Cards */}
+        {/* Activity Overview */}
         <Card className="border-none shadow-lg">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Total Patients</p>
-                <p className="text-4xl font-bold mt-1">248</p>
+                <p className="text-4xl font-bold mt-1">{stats.totalPatients}</p>
               </div>
               <div className="h-12 w-12 bg-[#E5DEFF] rounded-full flex items-center justify-center">
                 <Users className="h-6 w-6 text-primary" />
@@ -236,7 +247,7 @@ const DocDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Prescriptions</p>
-                <p className="text-4xl font-bold mt-1">173</p>
+                <p className="text-4xl font-bold mt-1">{stats.prescriptions}</p>
               </div>
               <div className="h-12 w-12 bg-[#E5DEFF] rounded-full flex items-center justify-center">
                 <Heart className="h-6 w-6 text-primary" />
@@ -293,7 +304,7 @@ const DocDashboard = () => {
 
               <div className="text-center pt-2">
                 <Button variant={"link"} size={"sm"} asChild>
-                  <NavLink to={"/appointments"}>View All Appointments</NavLink>
+                  <NavLink to={"/doctor/appointments"}>View All Appointments</NavLink>
                 </Button>
               </div>
             </div>
@@ -309,7 +320,7 @@ const DocDashboard = () => {
                 Recent Patients
               </CardTitle>
               <Button className="text-gray-700 hover:bg-[#FDE1D3] border-none shadow-sm" variant={"ghost"} size={"sm"} asChild>
-                <NavLink to={"/patients"}>
+                <NavLink to={"/doctor/patients"}>
                   View All
                   <ChevronRight className="ml-1 h-4 w-4" />
                 </NavLink>

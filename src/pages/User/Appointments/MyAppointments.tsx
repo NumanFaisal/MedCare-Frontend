@@ -3,14 +3,14 @@ import api from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  Calendar, Clock, MapPin, Star, AlertCircle, X,
-  CheckCircle2, XCircle, Clock4, ChevronRight, MessageSquare, IndianRupee
+  Calendar, Clock, MapPin, Star, AlertCircle,
+  CheckCircle2, XCircle, Clock4, ChevronRight,IndianRupee
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NavLink } from "react-router-dom";
+import ReviewModal from "@/components/Reviews/ReviewModal";
 
 // --- TYPES ---
 interface AppointmentData {
@@ -58,31 +58,6 @@ const submitReview = async (payload: { targetType: string; targetId: number; rat
   const { data } = await api.post("/api/reviews/add", payload);
   return data;
 };
-
-// Star rating interactive component
-function InteractiveStars({ rating, onRate }: { rating: number; onRate: (r: number) => void }) {
-  const [hover, setHover] = useState(0);
-  return (
-    <div className="flex items-center gap-1">
-      {[1, 2, 3, 4, 5].map(i => (
-        <button
-          key={i}
-          type="button"
-          className="transition-transform hover:scale-125"
-          onMouseEnter={() => setHover(i)}
-          onMouseLeave={() => setHover(0)}
-          onClick={() => onRate(i)}
-        >
-          <Star
-            className="w-7 h-7 transition-colors"
-            fill={(hover || rating) >= i ? "#FBBF24" : "transparent"}
-            stroke={(hover || rating) >= i ? "#FBBF24" : "#D1D5DB"}
-          />
-        </button>
-      ))}
-    </div>
-  );
-}
 
 // Status badge
 function StatusBadge({ status }: { status: string }) {
@@ -134,7 +109,10 @@ export default function MyAppointments() {
       setReviewComment("");
       queryClient.invalidateQueries({ queryKey: ["my-appointments"] });
     },
-    onError: () => toast.error("Failed to submit review."),
+    onError: (err: any) => {
+      const message = err?.response?.data?.error || err?.response?.data?.message || "Failed to submit review.";
+      toast.error("Submission Failed", { description: message });
+    },
   });
 
   const now = new Date();
@@ -147,16 +125,13 @@ export default function MyAppointments() {
 
   const displayedAppointments = activeTab === "upcoming" ? upcoming : past;
 
-  const handleSubmitReview = () => {
-    if (!reviewTarget || reviewRating === 0) {
-      toast.warning("Please select a star rating.");
-      return;
-    }
+  const handleSubmitReview = (data: { rating: number; comment: string }) => {
+    if (!reviewTarget) return;
     reviewMutation.mutate({
       targetType: "DOCTOR",
       targetId: reviewTarget.doctorId,
-      rating: reviewRating,
-      comment: reviewComment,
+      rating: data.rating,
+      comment: data.comment,
     });
   };
 
@@ -324,83 +299,13 @@ export default function MyAppointments() {
       )}
 
       {/* --- REVIEW MODAL --- */}
-      {reviewTarget && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setReviewTarget(null)}>
-          <div
-            className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="p-6 border-b flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">Rate Your Experience</h2>
-                <p className="text-sm text-gray-500">{reviewTarget.doctorName}</p>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setReviewTarget(null)}>
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
-
-            {/* Body */}
-            <div className="p-6 space-y-6">
-              {/* Star Rating */}
-              <div className="text-center">
-                <p className="text-sm text-gray-600 mb-3">How was your experience?</p>
-                <div className="flex justify-center">
-                  <InteractiveStars rating={reviewRating} onRate={setReviewRating} />
-                </div>
-                {reviewRating > 0 && (
-                  <p className="text-xs text-gray-500 mt-2 animate-in fade-in">
-                    {["", "Poor", "Could be better", "Good", "Very Good", "Excellent"][reviewRating]}
-                  </p>
-                )}
-              </div>
-
-              {/* Comment */}
-              <div>
-                <Textarea
-                  placeholder="Share your experience... (optional)"
-                  className="min-h-[100px] resize-none"
-                  value={reviewComment}
-                  onChange={(e) => setReviewComment(e.target.value)}
-                  maxLength={500}
-                />
-                <div className="text-right">
-                  <span className="text-[10px] text-gray-400">{reviewComment.length}/500</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="p-6 pt-0 flex gap-3">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setReviewTarget(null)}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="flex-1 text-white"
-                disabled={reviewRating === 0 || reviewMutation.isPending}
-                onClick={handleSubmitReview}
-              >
-                {reviewMutation.isPending ? (
-                  <span className="flex items-center gap-2">
-                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                    Submitting...
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1">
-                    <MessageSquare className="w-4 h-4" />
-                    Submit Review
-                  </span>
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ReviewModal
+        isOpen={!!reviewTarget}
+        onClose={() => setReviewTarget(null)}
+        onSubmit={handleSubmitReview}
+        isSubmitting={reviewMutation.isPending}
+        doctorName={reviewTarget?.doctorName || ""}
+      />
     </div>
   );
 }

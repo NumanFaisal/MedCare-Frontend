@@ -58,23 +58,23 @@ function DocProfile() {
       try {
         const response = await api.get("/api/auth/profile");
 
-        const user = response.data.user || {};
-        const doctor = response.data.doctor || {};
+        const data = response.data;
+        const doctor = data.doctor || {};
 
         setFormData({
-          firstName: user.firstName || "",
-          lastName: user.lastName || "",
-          email: user.email || "",
-          phone: user.phoneNumber || "",
-          userUniqueId: response.data.userUniqueId || "N/A",
+          firstName: data.firstName || "",
+          lastName: data.lastName || "",
+          email: data.email || "",
+          phone: data.phoneNumber || "",
+          userUniqueId: data.userUniqueId || "N/A",
           specialization: doctor.specialization || "",
           licenseNumber: doctor.licenseNumber || "",
           hospitalAffiliation: doctor.hospitalAffiliation || "",
-          education: doctor.education || "",
-          experience: doctor.experience || "",
-          languages: doctor.languages || "",
-          consultationFee: doctor.consultationFee || "",
-          bio: doctor.bio || "",
+          education: doctor.educationQualifications ? doctor.educationQualifications.join(", ") : "",
+          experience: doctor.yearsOfExperience != null ? String(doctor.yearsOfExperience) : "",
+          languages: doctor.languagesSpoken ? doctor.languagesSpoken.join(", ") : "",
+          consultationFee: doctor.consultationFee != null ? String(doctor.consultationFee) : "",
+          bio: doctor.professionalBio || "",
         });
 
         setProfileImage(response.data.profileImageDb || null);
@@ -101,19 +101,52 @@ function DocProfile() {
   };
 
   // --- 3. SUBMIT HANDLERS ---
-  const handleProfileUpdate = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    try {
-      await api.patch("/api/profile/update", formData);
+ const handleProfileUpdate = async (e: FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
 
-      toast.success("Profile Updated", {
-        description: "Your profile information has been updated successfully.",
-      });
-    } catch (error: any) {
-      console.error("Update failed:", error);
-      toast.error(error.response?.data?.message || "Failed to update profile.");
-    }
-  };
+  try {
+    const payload = {
+      professionalBio: formData.bio || undefined,
+
+      specialization: formData.specialization
+        ? formData.specialization.toUpperCase()
+        : undefined,
+
+      hospitalAffiliation: formData.hospitalAffiliation || undefined,
+
+      licenseNumber: formData.licenseNumber || undefined,
+
+      yearsOfExperience:
+        formData.experience && !isNaN(Number(formData.experience))
+          ? Number(formData.experience)
+          : undefined,
+
+      consultationFee:
+        formData.consultationFee && !isNaN(Number(formData.consultationFee))
+          ? Number(formData.consultationFee)
+          : undefined,
+
+      languagesSpoken:
+        formData.languages && formData.languages.trim() !== ""
+          ? formData.languages.split(",").map((l) => l.trim())
+          : undefined,
+
+      educationQualifications:
+        formData.education && formData.education.trim() !== ""
+          ? formData.education.split(",").map((e) => e.trim())
+          : undefined,
+    };
+
+    console.log("PAYLOAD:", payload);
+
+    await api.patch("/api/profile/update", payload);
+
+    toast.success("Profile Updated");
+  } catch (error: any) {
+    console.log("ERROR:", error.response?.data);
+    toast.error(error.response?.data?.message || "Update failed");
+  }
+};
 
   const handlePasswordUpdate = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();

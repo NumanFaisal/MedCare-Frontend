@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Calendar,
@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import ReviewModal from "@/components/Reviews/ReviewModal";
 
 // --- TYPES ---
 interface DoctorData {
@@ -33,7 +34,8 @@ interface DoctorData {
   experience: number;
   consultationFee: number;
   about: string;
-  photo: string;
+  photo: string | null;
+  availableDays: number[];
 }
 
 interface TimeSlot {
@@ -63,7 +65,7 @@ interface BookingPayload {
   reason: string;
 }
 
-const PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=300&auto=format&fit=crop";
+const DEFAULT_AVATAR = "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png";
 
 // --- API FUNCTIONS ---
 const fetchDoctorDetails = async (id: string | undefined): Promise<DoctorData> => {
@@ -78,7 +80,8 @@ const fetchDoctorDetails = async (id: string | undefined): Promise<DoctorData> =
     experience: data.yearsOfExperience,
     consultationFee: data.consultationFee,
     about: data.professionalBio || "Experienced specialist committed to patient care.",
-    photo: PLACEHOLDER_IMAGE
+    photo: data.user?.profileImageDb ||null,
+    availableDays: data.availability ? Array.from(new Set(data.availability.map((a: any) => a.dayOfWeek))) : []
   };
 };
 
@@ -96,6 +99,21 @@ const fetchSlots = async (doctorId: string | undefined, date: string): Promise<T
 
 const bookAppointment = async (payload: BookingPayload) => {
   const response = await api.post("/api/appointments/book", payload);
+  return response.data;
+};
+
+const checkReviewEligibility = async (doctorId: string | undefined): Promise<boolean> => {
+  if (!doctorId) return false;
+  try {
+    const response = await api.get(`/api/reviews/check-eligibility/${doctorId}`);
+    return response.data.eligible;
+  } catch {
+    return false;
+  }
+};
+
+const submitReview = async (payload: { targetType: string; targetId: number; rating: number; comment: string }) => {
+  const response = await api.post("/api/reviews/add", payload);
   return response.data;
 };
 
@@ -127,6 +145,8 @@ export default function BookingDetails() {
   const [patientName, setPatientName] = useState("");
   const [patientPhone, setPatientPhone] = useState("");
   const [symptoms, setSymptoms] = useState("");
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   // Pre-fill patient info from profile
   useEffect(() => {
@@ -155,6 +175,12 @@ export default function BookingDetails() {
     staleTime: 1000 * 60 * 5,
   });
 
+  const { data: isEligible } = useQuery({
+    queryKey: ["review-eligibility", id],
+    queryFn: () => checkReviewEligibility(id),
+    enabled: !!id,
+  });
+
   const { data: slots = [], isLoading: slotsLoading } = useQuery({
     queryKey: ["doctor-slots", id, selectedDate],
     queryFn: () => fetchSlots(id, selectedDate),
@@ -176,19 +202,57 @@ export default function BookingDetails() {
     }
   });
 
+  const reviewMutation = useMutation({
+    mutationFn: submitReview,
+    onSuccess: () => {
+      toast.success("Review submitted! Thank you for your feedback.");
+      setIsReviewModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["doctor-reviews", id] });
+      queryClient.invalidateQueries({ queryKey: ["review-eligibility", id] });
+    },
+    onError: (err: any) => {
+      const message = err?.response?.data?.error || err?.response?.data?.message || "Failed to submit review.";
+      toast.error("Submission Failed", { description: message });
+    },
+  });
+
   // --- HELPERS ---
   const getUpcomingDates = () => {
     const dates = [];
     const today = new Date();
-    for (let i = 0; i < 7; i++) {
+    let daysAdded = 0;
+    let offset = 0;
+    
+    // Fallback if doctor has no specific availability, just show next 7 days
+    const hasAvailability = doctor?.availableDays && doctor.availableDays.length > 0;
+
+    while (daysAdded < 7 && offset < 30) {
       const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      dates.push({
-        dayName: date.toLocaleDateString('en-US', { weekday: 'short' }),
-        dayNumber: date.getDate(),
-        monthName: date.toLocaleDateString('en-US', { month: 'short' }),
-        fullDate: date.toISOString().split('T')[0]
-      });
+      date.setDate(today.getDate() + offset);
+      
+      const dayOfWeek = date.getDay();
+      
+      // If doctor has specific availability, only show those days (except weekends if not specified)
+      // If no specific availability, just exclude weekends (0 and 6)
+      const isAvailable = hasAvailability 
+        ? doctor.availableDays.includes(dayOfWeek)
+        : (dayOfWeek !== 0 && dayOfWeek !== 6);
+
+      if (isAvailable) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const localFullDate = `${year}-${month}-${day}`;
+
+        dates.push({
+          dayName: date.toLocaleDateString('en-US', { weekday: 'short' }),
+          dayNumber: date.getDate(),
+          monthName: date.toLocaleDateString('en-US', { month: 'short' }),
+          fullDate: localFullDate
+        });
+        daysAdded++;
+      }
+      offset++;
     }
     return dates;
   };
@@ -200,6 +264,16 @@ export default function BookingDetails() {
       appointmentDate: selectedSlot.dateTime,
       status: "PENDING",
       reason: symptoms
+    });
+  };
+
+  const handleSubmitReview = (data: { rating: number; comment: string }) => {
+    if (!doctor) return;
+    reviewMutation.mutate({
+      targetType: "DOCTOR",
+      targetId: doctor.id,
+      rating: data.rating,
+      comment: data.comment,
     });
   };
 
@@ -300,7 +374,7 @@ export default function BookingDetails() {
         <div className="lg:col-span-1 space-y-6">
           <Card className="overflow-hidden border-2 border-slate-100 shadow-sm">
             <div className="aspect-[4/3] w-full relative">
-              <img src={doctor.photo} alt={doctor.name} className="w-full h-full object-cover" />
+              <img src={doctor.photo || DEFAULT_AVATAR} alt={doctor.name} className="w-full h-full object-cover" />
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 pt-12">
                 <h2 className="text-white text-xl font-bold">{doctor.name}</h2>
                 <p className="text-slate-200 text-sm">{doctor.specialization}</p>
@@ -355,6 +429,17 @@ export default function BookingDetails() {
                   </span>
                 )}
               </CardTitle>
+              {isEligible && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="text-primary border-primary hover:bg-primary/5 h-8 text-xs"
+                  onClick={() => setIsReviewModalOpen(true)}
+                >
+                  <Star className="w-3 h-3 mr-1" />
+                  Write Review
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               {reviews.length === 0 ? (
@@ -462,16 +547,26 @@ export default function BookingDetails() {
                 ) : (
                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
                     {slots.map((slot) => (
-                      <button
-                        key={slot.time}
-                        onClick={() => setSelectedSlot(slot)}
-                        className={`py-2.5 px-1 text-xs font-medium rounded-lg border transition-all ${selectedSlot?.time === slot.time
-                            ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary shadow-sm'
-                            : 'border-slate-200 text-slate-600 hover:border-primary/50 hover:bg-primary/5'
+                      <div key={slot.time} className="relative group">
+                        <button
+                          disabled={!slot.available}
+                          onClick={() => setSelectedSlot(slot)}
+                          className={`w-full py-2.5 px-1 text-xs font-medium rounded-lg border transition-all ${
+                            !slot.available 
+                              ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed opacity-60 grayscale-[0.5]' 
+                              : selectedSlot?.time === slot.time
+                                ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary shadow-sm'
+                                : 'border-slate-200 text-slate-600 hover:border-primary/50 hover:bg-primary/5'
                           }`}
-                      >
-                        {slot.time}
-                      </button>
+                        >
+                          {slot.time}
+                        </button>
+                        {!slot.available && (
+                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                            Already booked check other slot
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                 )}
@@ -570,6 +665,14 @@ export default function BookingDetails() {
           </Card>
         </div>
       </div>
+
+      <ReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        onSubmit={handleSubmitReview}
+        isSubmitting={reviewMutation.isPending}
+        doctorName={doctor.name}
+      />
     </div>
   );
 }

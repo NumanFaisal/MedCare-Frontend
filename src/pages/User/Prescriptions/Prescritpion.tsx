@@ -26,14 +26,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import ReviewModal from "@/components/Reviews/ReviewModal";
+import { Star } from "lucide-react";
 
 // --- TYPES ---
 interface FormattedPrescription {
   id: string;
   originalId: string;
-  medication: string;
-  dosage: string;
-  frequency: string;
+  doctorId: number;
+  medications: Array<{
+    name: string;
+    dosage: string;
+    frequency: string;
+  }>;
   startDate: string;
   endDate: string;
   doctor: string;
@@ -49,7 +54,7 @@ const fetchPrescriptions = async (): Promise<FormattedPrescription[]> => {
   const prescriptions = response.data.data || response.data;
 
   // Data Transformation
-  return prescriptions.flatMap((rx: any) => {
+  return prescriptions.map((rx: any) => {
     const doctorName = rx.doctor?.user 
       ? `Dr. ${rx.doctor.user.firstName} ${rx.doctor.user.lastName}`
       : "Unknown Doctor";
@@ -58,28 +63,29 @@ const fetchPrescriptions = async (): Promise<FormattedPrescription[]> => {
     const validUntil = rx.validUntilDate ? new Date(rx.validUntilDate) : null;
     const medications = rx.prescribedMedications || []; 
 
-    return medications.map((med: any, index: number) => {
-      let endDate = validUntil;
-      if (!endDate) {
-        endDate = new Date(startDate);
-        endDate.setDate(startDate.getDate() + 7);
-      }
+    let endDate = validUntil;
+    if (!endDate) {
+      endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + 7);
+    }
 
-      const isExpired = new Date() > endDate;
+    const isExpired = new Date() > endDate;
 
-      return {
-        id: `${rx.id}-${index}`, 
-        originalId: rx.prescriptionId || String(rx.id),
-        medication: med.medication?.name || "Unknown Med",
+    return {
+      id: String(rx.id),
+      originalId: rx.prescriptionId || String(rx.id),
+      doctorId: rx.doctorId,
+      medications: medications.map((med: any) => ({
+        name: med.medication?.name || "Unknown Med",
         dosage: med.dosage,
-        frequency: med.frequency,
-        startDate: format(startDate, 'dd-MM-yy'),
-        endDate: format(endDate, 'dd-MM-yy'),
-        doctor: doctorName,
-        status: isExpired ? "expired" : "active",
-        notes: rx.additionalNotes || "No additional notes provided."
-      };
-    });
+        frequency: med.frequency
+      })),
+      startDate: format(startDate, 'dd-MM-yy'),
+      endDate: format(endDate, 'dd-MM-yy'),
+      doctor: doctorName,
+      status: isExpired ? "expired" : "active",
+      notes: rx.additionalNotes || "No additional notes provided."
+    };
   });
 };
 
@@ -96,6 +102,7 @@ function Prescription() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadNotes, setUploadNotes] = useState('');
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  const [reviewTarget, setReviewTarget] = useState<{ doctorId: number; doctorName: string } | null>(null);
   const queryClient = useQueryClient();
 
   // --- 1. REACT QUERY ---
@@ -126,6 +133,21 @@ function Prescription() {
     }
   });
 
+  const reviewMutation = useMutation({
+    mutationFn: async (payload: { targetType: string; targetId: number; rating: number; comment: string }) => {
+      await api.post("/api/reviews/add", payload);
+    },
+    onSuccess: () => {
+      toast.success("Review submitted successfully!");
+      setReviewTarget(null);
+      queryClient.invalidateQueries({ queryKey: ['my-prescriptions'] });
+    },
+    onError: (err: any) => {
+      const message = err?.response?.data?.error || err?.response?.data?.message || "Failed to submit review.";
+      toast.error("Submission Failed", { description: message });
+    }
+  });
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -147,11 +169,23 @@ function Prescription() {
     reader.readAsDataURL(uploadFile);
   };
 
+  const handleReviewSubmit = (data: { rating: number; comment: string }) => {
+    if (!reviewTarget) return;
+    const payload = {
+      targetType: "DOCTOR",
+      targetId: reviewTarget.doctorId,
+      rating: data.rating,
+      comment: data.comment,
+    };
+    console.log("Prescription Page: Submitting review payload:", payload);
+    reviewMutation.mutate(payload);
+  };
+
   // --- 2. DERIVED STATE (FILTERING) ---
   const filteredPrescriptions = prescriptions.filter(p => {
     const query = searchQuery.toLowerCase();
     const matchesSearch = 
-      p.medication.toLowerCase().includes(query) || 
+      p.medications.some(m => m.name.toLowerCase().includes(query)) || 
       p.doctor.toLowerCase().includes(query) || 
       p.id.toLowerCase().includes(query);
 
@@ -306,8 +340,12 @@ function Prescription() {
                       <div className="flex items-center space-x-3">
                         <div className={`h-2 w-2 rounded-full ${prescription.status === 'active' ? 'bg-green-500' : 'bg-gray-400'}`} />
                         <div>
-                          <h3 className="font-medium">{prescription.medication}</h3>
-                          <p className="text-sm text-gray-500">{prescription.dosage}, {prescription.frequency}</p>
+                          <h3 className="font-medium">
+                            {prescription.medications.length} {prescription.medications.length === 1 ? 'Medication' : 'Medications'}
+                          </h3>
+                          <p className="text-sm text-gray-500 truncate max-w-[200px] sm:max-w-[400px]">
+                            {prescription.medications.map(m => m.name).join(', ')}
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-4">
@@ -349,13 +387,34 @@ function Prescription() {
                             <dd className="mt-1 text-sm text-gray-900">{prescription.endDate}</dd>
                           </div>
                           <div className="sm:col-span-2">
+                            <dt className="text-sm font-medium text-gray-500">Medications</dt>
+                            <dd className="mt-2 text-sm text-gray-900">
+                                <ul className="list-disc pl-5 space-y-1">
+                                    {prescription.medications.map((med, idx) => (
+                                        <li key={idx}>
+                                            <span className="font-semibold">{med.name}</span> - {med.dosage} ({med.frequency})
+                                        </li>
+                                    ))}
+                                </ul>
+                            </dd>
+                          </div>
+                          <div className="sm:col-span-2 pt-2 border-t border-gray-200">
                             <dt className="text-sm font-medium text-gray-500">Instructions / Notes</dt>
                             <dd className="mt-1 text-sm text-gray-900">{prescription.notes}</dd>
                           </div>
-                          <div className="sm:col-span-2 pt-2">
+                          <div className="sm:col-span-2 pt-2 flex flex-wrap gap-2">
                             <Button size="sm" variant="outline" className="flex items-center gap-1 bg-primary hover:text-black hover:bg-[#E5DEFF]/50 text-white">
                               <Download className="h-4 w-4" />
                               Download PDF
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="flex items-center gap-1 border-amber-500 text-amber-600 hover:bg-amber-50"
+                              onClick={() => setReviewTarget({ doctorId: prescription.doctorId, doctorName: prescription.doctor })}
+                            >
+                              <Star className="h-4 w-4" />
+                              Rate Doctor
                             </Button>
                           </div>
                         </dl>
@@ -463,6 +522,13 @@ function Prescription() {
           </div>
         </DialogContent>
       </Dialog>
+      <ReviewModal
+        isOpen={!!reviewTarget}
+        onClose={() => setReviewTarget(null)}
+        onSubmit={handleReviewSubmit}
+        isSubmitting={reviewMutation.isPending}
+        doctorName={reviewTarget?.doctorName || ""}
+      />
     </div>
   )
 }

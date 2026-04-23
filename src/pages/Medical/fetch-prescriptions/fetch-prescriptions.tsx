@@ -17,7 +17,6 @@ interface Medication {
   dosage: string;
   frequency: string;
   duration: string;
-  quantity: number | string;
 }
 
 interface PrescriptionData {
@@ -70,8 +69,8 @@ const searchPrescriptions = async ({ patientId, prescriptionId }: { patientId: s
       name: med.medication?.name || "Unknown Med",
       dosage: med.dosage,
       frequency: med.frequency,
-      duration: med.duration,
-      quantity: med.quantity || "N/A" // Assuming backend might send quantity, else placeholder
+      duration: med.duration
+       // Assuming backend might send quantity, else placeholder
     })),
     diagnosis: Array.isArray(data.diagnosis) ? data.diagnosis.join(", ") : (data.diagnosis || "N/A"),
     notes: data.additionalNotes || "No notes provided."
@@ -280,7 +279,7 @@ function FetchPrescriptions() {
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dosage</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Frequency</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                        
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -290,7 +289,6 @@ function FetchPrescriptions() {
                           <td className="px-4 py-3 text-sm">{med.dosage}</td>
                           <td className="px-4 py-3 text-sm">{med.frequency}</td>
                           <td className="px-4 py-3 text-sm">{med.duration}</td>
-                          <td className="px-4 py-3 text-sm">{med.quantity}</td>
                         </tr>
                       ))}
                     </tbody>
