@@ -92,7 +92,7 @@ const fetchPrescriptions = async (): Promise<FormattedPrescription[]> => {
 // --- MANUAL PRESCRIPTION FETCH FUNCTION ---
 const fetchMyUploads = async () => {
   const response = await api.get("/api/upload/prescriptions");
-  return response.data.prescriptions || [];
+  return response.data?.prescriptions || [];
 };
 
 function Prescription() {

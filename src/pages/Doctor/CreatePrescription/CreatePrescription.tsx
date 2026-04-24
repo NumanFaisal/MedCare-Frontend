@@ -76,9 +76,9 @@ const CreatePrescription = () => {
   const [medications, setMedications] = useState<Medication[]>([{ name: '', dosage: '', frequency: '', duration: '' }]);
 
   // --- 1. REACT QUERY: FETCH PATIENTS ---
-  const { 
-    data: patientsList = [], 
-    isLoading: fetchingPatients 
+  const {
+    data: patientsList = [],
+    isLoading: fetchingPatients
   } = useQuery({
     queryKey: ['my-patients-from-appointments'],
     queryFn: fetchUniquePatients,

@@ -207,10 +207,12 @@ export default function MyAppointments() {
       ) : (
         <div className="grid gap-4">
           {displayedAppointments.map((apt) => {
-            const doctorName = `Dr. ${apt.doctor.user.firstName} ${apt.doctor.user.lastName}`;
-            const aptDate = new Date(apt.appointmentDate);
+            const doctorUser = apt.doctor?.user;
+            const doctorName = doctorUser ? `Dr. ${doctorUser.firstName} ${doctorUser.lastName}` : "Unknown Doctor";
+            const aptDate = apt.appointmentDate ? new Date(apt.appointmentDate) : new Date();
             const isUpcoming = ["BOOKED", "CONFIRMED", "PENDING"].includes(apt.status);
             const isCompleted = apt.status === "COMPLETED";
+            const specialization = apt.doctor?.specialization;
 
             return (
               <Card key={apt.id} className="border border-gray-200 hover:border-gray-300 transition-colors shadow-sm">
@@ -220,7 +222,7 @@ export default function MyAppointments() {
                     <div className="flex items-start gap-4">
                       <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                         <span className="text-lg font-bold text-primary">
-                          {apt.doctor.user.firstName[0]}
+                          {doctorUser?.firstName ? doctorUser.firstName[0] : "D"}
                         </span>
                       </div>
                       <div>
@@ -228,7 +230,9 @@ export default function MyAppointments() {
                           <h3 className="font-bold text-gray-900">{doctorName}</h3>
                           <StatusBadge status={apt.status} />
                         </div>
-                        <p className="text-sm text-primary font-medium mt-0.5">{apt.doctor.specialization}</p>
+                        <p className="text-sm text-primary font-medium mt-0.5">
+                          {Array.isArray(specialization) ? specialization.join(", ") : (specialization || "General Physician")}
+                        </p>
                         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-500">
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3 h-3" />

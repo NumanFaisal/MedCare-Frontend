@@ -69,25 +69,44 @@ const DEFAULT_AVATAR = "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-pro
 
 // --- API FUNCTION ---
 const fetchDoctors = async (): Promise<Doctor[]> => {
-  const response = await api.get<BackendDoctor[]>("/api/users/doctors");
-  const todayDayOfWeek = new Date().getDay();
+  try {
+    const response = await api.get<BackendDoctor[]>("/api/users/doctors");
+    
+    if (!response.data || !Array.isArray(response.data)) {
+      console.error("API did not return an array of doctors:", response.data);
+      return [];
+    }
 
-  return response.data.map((doc) => {
-    const isAvailableToday = doc.availability?.some((slot) => slot.dayOfWeek === todayDayOfWeek);
+    const todayDayOfWeek = new Date().getDay();
 
-    return {
-      id: doc.id,
-      name: `Dr. ${doc.user.firstName} ${doc.user.lastName}`,
-      specialization: doc.specialization || "General Physician",
-      clinic: doc.hospitalAffiliation || "Private Clinic",
-      experience: doc.yearsOfExperience || 0,
-      consultationFee: doc.consultationFee || 0,
-      availability: isAvailableToday ? "Available Today" : "Unavailable Today",
-      photo: doc.user.profileImageDb || null,
-      averageRating: doc.averageRating || 0,
-      totalReviews: doc.totalReviews || 0,
-    };
-  });
+    return response.data.map((doc) => {
+      const isAvailableToday = doc.availability?.some((slot) => slot.dayOfWeek === todayDayOfWeek);
+      
+      // Ensure specialization is always a string
+      let spec = "General Physician";
+      if (Array.isArray(doc.specialization)) {
+        spec = doc.specialization.join(", ");
+      } else if (doc.specialization) {
+        spec = String(doc.specialization);
+      }
+
+      return {
+        id: doc.id,
+        name: `Dr. ${doc.user?.firstName || "Unknown"} ${doc.user?.lastName || "Doctor"}`,
+        specialization: spec,
+        clinic: doc.hospitalAffiliation || "Private Clinic",
+        experience: doc.yearsOfExperience || 0,
+        consultationFee: doc.consultationFee || 0,
+        availability: isAvailableToday ? "Available Today" : "Unavailable Today",
+        photo: doc.user?.profileImageDb || null,
+        averageRating: doc.averageRating || 0,
+        totalReviews: doc.totalReviews || 0,
+      };
+    });
+  } catch (error) {
+    console.error("Error fetching doctors:", error);
+    throw error;
+  }
 };
 
 // --- SKELETON CARD ---

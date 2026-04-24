@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Activity, Book, Calendar, FileText, Home, LogOut, Menu, ShoppingBag, User, UserCircle, X } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import logo from "@/assets/logo.png";
 
@@ -26,11 +27,19 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role }) => 
     const [profileImg, setProfileImg] = useState<string | null>(null);
     const navigate = useNavigate();
 
+    const { data: profile } = useQuery({
+        queryKey: ['user-profile'],
+        queryFn: async () => {
+            const { data } = await api.get('/api/auth/profile');
+            return data;
+        }
+    });
+
     useEffect(() => {
-        api.get('/api/auth/profile')
-           .then(res => setProfileImg(res.data.profileImageDb || null))
-           .catch(err => console.error(err));
-    }, []);
+        if (profile) {
+            setProfileImg(profile.profileImageDb || null);
+        }
+    }, [profile]);
 
     const handleLogout = () => {
         localStorage.removeItem('token');

@@ -27,7 +27,7 @@ export const Specialist: React.FC<SpecialistProps> = ({
     React.useEffect(() => {
         const fetchSpecialist = async () => {
             try {
-                const response = await api.get('/api/users/doctors/featured');
+                const response = await api.get('/api/users/doctors/top-experienced');
                 setSpecialist(response.data);
             } catch (error) {
                 console.error('Error fetching featured specialist:', error);
@@ -61,7 +61,7 @@ export const Specialist: React.FC<SpecialistProps> = ({
             twitter: specialist.twitter || '#',
             youtube: specialist.youtube || '#',
         },
-        credentials: specialist.specialization?.join(', '),
+        credentials: Array.isArray(specialist.specialization) ? specialist.specialization.join(', ') : specialist.specialization,
     } : {
         name: propName || 'Dr. Sarah Johnson',
         image: propImage || 'https://img.freepik.com/free-photo/woman-doctor-wearing-lab-coat-with-stethoscope-isolated_1303-29791.jpg?semt=ais_hybrid&w=740&q=80',

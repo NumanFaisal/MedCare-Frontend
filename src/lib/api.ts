@@ -29,14 +29,17 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor: Handle 401 (unauthorized) globally
+// Response interceptor: Handle 401 and 403 (unauthorized/forbidden) globally
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid — clear auth state and redirect
+    const status = error.response?.status;
+    // 401 = no token / 403 = token expired or invalid
+    if (status === 401 || status === 403) {
+      // Clear stale auth state from localStorage
       localStorage.removeItem('token');
       localStorage.removeItem('role');
+      localStorage.removeItem('user');
       // Only redirect if not already on an auth page
       if (!window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
         window.location.href = '/login';

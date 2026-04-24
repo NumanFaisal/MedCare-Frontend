@@ -1,61 +1,53 @@
-import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Activity, FileText, Download } from "lucide-react";
+import { ArrowLeft, Activity, FileText, Download, Clock, Info } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import { toast } from "sonner";
+import { format, addMonths } from "date-fns";
 
 interface TimelineResponse {
   success: boolean;
   data: {
     report: string;
     searchSources: any;
+    cached: boolean;
+    generatedAt: string;
   };
 }
 
 export default function AnalysisReport() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [reportText, setReportText] = useState<string>("");
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
   
-  // Extract months parameter or default to 6
   const monthsParam = searchParams.get('months');
   const months = monthsParam ? parseInt(monthsParam, 10) : 6;
 
-  useEffect(() => {
-    fetchReport();
-  }, [months]);
-
-  const fetchReport = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      // Calls the highly optimized backend AI timeline generator
+  const { data, isLoading, isError, error: queryError, refetch } = useQuery({
+    queryKey: ['health-timeline', months],
+    queryFn: async () => {
       const res = await api.get<TimelineResponse>(`/api/ai/timeline?months=${months}`);
       if (res.data.success && res.data.data) {
-        setReportText(res.data.data.report);
-      } else {
-        throw new Error("Invalid response from server");
+        return res.data.data;
       }
-    } catch (err: any) {
-      console.error("Analysis generation failed:", err);
-      setError(err.response?.data?.error || "Failed to generate health timeline. Please try again later.");
-      toast.error("Failed to generate report");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      throw new Error("Invalid response from server");
+    },
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+  });
+
+  const reportText = data?.report || "";
+  const error = queryError ? (queryError as any).response?.data?.error || queryError.message : null;
+
+  const generatedAt = data?.generatedAt ? new Date(data.generatedAt) : new Date();
+  const nextAvailable = addMonths(generatedAt, 6);
+  const isCached = data?.cached || false;
 
   const handleDownloadPdf = async () => {
     try {
       toast.info("Preparing PDF...");
-      // The backend has a PDF generation route but it's hardcoded to 6 months. 
-      // We'll append query parameter for completeness even though the current backend route may ignore it.
       const res = await api.get(`/api/ai/timeline/pdf?months=${months}`, {
         responseType: 'blob',
       });
@@ -108,6 +100,33 @@ export default function AnalysisReport() {
         </div>
       </div>
 
+      {/* Caching/Cooldown Info Strip */}
+      {data && !isLoading && !isError && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="bg-blue-50/50 border-blue-100 py-3 px-4 flex items-center gap-3">
+            <Clock className="h-5 w-5 text-blue-600" />
+            <div className="text-xs">
+              <p className="text-blue-600 font-semibold uppercase tracking-wider">Report Status</p>
+              <p className="text-blue-900 font-medium">{isCached ? "Cached Version" : "Newly Generated"}</p>
+            </div>
+          </Card>
+          <Card className="bg-indigo-50/50 border-indigo-100 py-3 px-4 flex items-center gap-3">
+            <FileText className="h-5 w-5 text-indigo-600" />
+            <div className="text-xs">
+              <p className="text-indigo-600 font-semibold uppercase tracking-wider">Generated On</p>
+              <p className="text-indigo-900 font-medium">{format(generatedAt, 'PPP')}</p>
+            </div>
+          </Card>
+          <Card className="bg-amber-50/50 border-amber-100 py-3 px-4 flex items-center gap-3">
+            <Info className="h-5 w-5 text-amber-600" />
+            <div className="text-xs">
+              <p className="text-amber-600 font-semibold uppercase tracking-wider">Next Refresh Available</p>
+              <p className="text-amber-900 font-medium">{format(nextAvailable, 'PPP')}</p>
+            </div>
+          </Card>
+        </div>
+      )}
+
       <Card className="border-blue-100 shadow-md">
         <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100 pb-4">
           <CardTitle className="text-xl flex items-center gap-2">
@@ -137,14 +156,14 @@ export default function AnalysisReport() {
                 <Skeleton className="h-4 w-4/5" />
               </div>
             </div>
-          ) : error ? (
+          ) : isError ? (
             <div className="text-center py-12">
               <div className="bg-red-50 text-red-600 p-6 rounded-lg inline-block border border-red-100">
                 <p className="font-medium text-lg mb-2">Analysis Failed</p>
                 <p>{error}</p>
                 <Button 
                   className="mt-4 bg-red-600 hover:bg-red-700 text-white"
-                  onClick={fetchReport}
+                  onClick={() => refetch()}
                 >
                   Try Again
                 </Button>

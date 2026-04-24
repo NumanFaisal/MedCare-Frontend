@@ -51,55 +51,41 @@ interface Prescription {
 }
 
 // --- API FUNCTIONS ---
-const fetchAppointments = async (): Promise<Appointment[]> => {
+const fetchAppointments = async () => {
   const { data } = await api.get("/api/appointments/my-appointments");
-
-  return data.map((apt: any) => ({
-    id: apt.id,
-    doctorName: `Dr. ${apt.doctor.user.firstName} ${apt.doctor.user.lastName}`,
-    specialty: apt.doctor.specialization,
-    date: new Date(apt.appointmentDate).toLocaleDateString(),
-    time: new Date(apt.appointmentDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    reason: apt.notes,
-    status: apt.status.toLowerCase(),
-    patient: {
-      name: `${apt.patient.user.firstName} ${apt.patient.user.lastName}`,
-      contact: apt.patient.user.phoneNumber,
-      age: apt.patient.dateOfBirth ? new Date().getFullYear() - new Date(apt.patient.dateOfBirth).getFullYear() : 'N/A',
-      gender: apt.patient.bloodType || 'N/A'
-    }
-  }));
+  return Array.isArray(data) ? data : [];
 };
 
 const fetchPrescriptions = async (): Promise<Prescription[]> => {
   const response = await api.get("/api/prescriptions/patient/me");
 
-  // Backend returns paginated { data: [...], meta: {...} }
   const prescriptions = response.data.data || response.data;
 
+  if (!Array.isArray(prescriptions)) return [];
+
   return prescriptions.map((rx: any) => {
-    const validUntil = new Date(rx.validUntilDate);
+    const validUntil = rx.validUntilDate ? new Date(rx.validUntilDate) : new Date();
     const isExpired = new Date() > validUntil;
 
     return {
       id: rx.id,
       uniqueId: rx.prescriptionId || `RX-${rx.id}`,
-      diagnosis: Array.isArray(rx.diagnosis) ? rx.diagnosis.join(", ") : rx.diagnosis,
-      date: new Date(rx.date).toLocaleDateString(),
+      diagnosis: Array.isArray(rx.diagnosis) ? rx.diagnosis.join(", ") : (rx.diagnosis || "General Consultation"),
+      date: rx.date ? new Date(rx.date).toLocaleDateString() : "Unknown Date",
       validUntil: validUntil.toLocaleDateString(),
       isExpired: isExpired,
       doctor: {
-        name: `Dr. ${rx.doctor.user.firstName} ${rx.doctor.user.lastName}`,
-        specialization: rx.doctor.specialization || "General Physician",
-        hospital: rx.doctor.hospitalAffiliation || "Private Clinic"
+        name: rx.doctor?.user ? `Dr. ${rx.doctor.user.firstName} ${rx.doctor.user.lastName}` : "Unknown Doctor",
+        specialization: Array.isArray(rx.doctor?.specialization) ? rx.doctor.specialization.join(", ") : (rx.doctor?.specialization || "General Physician"),
+        hospital: rx.doctor?.hospitalAffiliation || "Private Clinic"
       },
-      prescribedMedications: rx.prescribedMedications.map((m: any) => ({
-        medication: m.medication.name,
-        dosage: m.dosage,
-        frequency: m.frequency,
+      prescribedMedications: (rx.prescribedMedications || []).map((m: any) => ({
+        medication: m.medication?.name || "Unknown Medicine",
+        dosage: m.dosage || "As prescribed",
+        frequency: m.frequency || "As prescribed",
         duration: m.duration || "As advised"
       })),
-      additionalNotes: rx.additionalNotes
+      additionalNotes: rx.additionalNotes || ""
     };
   });
 };
@@ -298,32 +284,62 @@ const UserDashboard = () => {
           <CardContent>
             {bookedAppointments.length > 0 ? (
               <div className="space-y-4">
-                {bookedAppointments.map(appt => (
-                  <div key={appt.id} className="flex items-center justify-between border-b pb-3 last:border-0">
-                    <div>
-                      <h4 className="font-medium">{appt.doctorName}</h4>
-                      <p className="text-sm text-gray-500">{appt.specialty}</p>
-                      <div className="flex items-center text-xs text-gray-500 mt-1">
-                        <Calendar className="h-3 w-3 mr-1" />
-                        {appt.date} at {appt.time}
+                {bookedAppointments.map((apt: any) => {
+                  const doctorUser = apt.doctor?.user;
+                  const doctorName = doctorUser ? `Dr. ${doctorUser.firstName} ${doctorUser.lastName}` : "Unknown Doctor";
+                  const specialization = apt.doctor?.specialization;
+                  const specialty = Array.isArray(specialization) ? specialization.join(", ") : (specialization || "General Physician");
+                  
+                  const aptDate = apt.appointmentDate ? new Date(apt.appointmentDate) : new Date();
+                  const displayDate = aptDate.toLocaleDateString();
+                  const displayTime = aptDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  const status = (apt.status || "booked").toLowerCase();
+
+                  return (
+                    <div key={apt.id} className="flex items-center justify-between border-b pb-3 last:border-0">
+                      <div>
+                        <h4 className="font-medium">{doctorName}</h4>
+                        <p className="text-sm text-gray-500">{specialty}</p>
+                        <div className="flex items-center text-xs text-gray-500 mt-1">
+                          <Calendar className="h-3 w-3 mr-1" />
+                          {displayDate} at {displayTime}
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <div className={`px-2 py-1 rounded-full text-xs font-medium mb-2 ${
+                          status === 'booked' || status === 'upcoming' || status === 'confirmed' ? 'bg-blue-100 text-blue-800'
+                            : status === 'completed' ? 'bg-green-100 text-green-800'
+                              : status === 'pending' ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-gray-100 text-gray-800'
+                          }`}>
+                          {status.charAt(0).toUpperCase() + status.slice(1)}
+                        </div>
+                        <Button size="sm" variant="outline" className="border-gray-300 border text-gray-700 hover:bg-[#FDE1D3]" onClick={() => {
+                          const patientUser = apt.patient?.user;
+                          const modalApt = {
+                            id: apt.id,
+                            doctorName,
+                            specialty,
+                            date: displayDate,
+                            time: displayTime,
+                            reason: apt.notes || "No notes provided",
+                            status: status,
+                            patient: {
+                              name: patientUser ? `${patientUser.firstName} ${patientUser.lastName}` : "Unknown Patient",
+                              contact: patientUser?.phoneNumber || "N/A",
+                              age: apt.patient?.dateOfBirth ? new Date().getFullYear() - new Date(apt.patient.dateOfBirth).getFullYear() : 'N/A',
+                              gender: apt.patient?.bloodType || 'N/A'
+                            }
+                          };
+                          handleViewAppointmentDetails(modalApt as any);
+                        }}>
+                          Details
+                          <ChevronRight className="ml-1 h-3 w-3" />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex flex-col items-end">
-                      <div className={`px-2 py-1 rounded-full text-xs font-medium mb-2 ${
-                        appt.status === 'booked' || appt.status === 'upcoming' ? 'bg-blue-100 text-blue-800'
-                          : appt.status === 'completed' ? 'bg-green-100 text-green-800'
-                            : appt.status === 'pending' ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-gray-100 text-gray-800'
-                        }`}>
-                        {appt.status.charAt(0).toUpperCase() + appt.status.slice(1)}
-                      </div>
-                      <Button size="sm" variant="outline" className="border-gray-300 border text-gray-700 hover:bg-[#FDE1D3]" onClick={() => handleViewAppointmentDetails(appt)}>
-                        Details
-                        <ChevronRight className="ml-1 h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-6">
