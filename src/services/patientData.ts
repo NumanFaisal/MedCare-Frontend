@@ -14,7 +14,8 @@ export const allPatients: PatientType[] =[
         lastVisit: "2023-06-01",
         nextAppointment: "2023-06-15",
         phone: "+1 (555) 123-4567",
-        email: "vishal.kumar@example.com"
+        email: "vishal.kumar@example.com",
+        userUniqueId: "UID001"
     },
     {
         id: "P002",
@@ -25,7 +26,8 @@ export const allPatients: PatientType[] =[
         lastVisit: "2023-05-22",
         nextAppointment: "2023-07-01",
         phone: "+1 (555) 234-5678",
-        email: "prince.w@example.com"
+        email: "prince.w@example.com",
+        userUniqueId: "UID002"
     },
     {
         id: "P003",
@@ -36,7 +38,8 @@ export const allPatients: PatientType[] =[
         lastVisit: "2023-05-18",
         nextAppointment: "2023-06-10",
         phone: "+1 (555) 345-6789",
-        email: "pratik@example.com"
+        email: "pratik@example.com",
+        userUniqueId: "UID003"
     },
     {
         id: "P004",
@@ -47,7 +50,8 @@ export const allPatients: PatientType[] =[
         lastVisit: "2023-05-15",
         nextAppointment: null,
         phone: "+1 (555) 456-7890",
-        email: "c.praveen@example.com"
+        email: "c.praveen@example.com",
+        userUniqueId: "UID004"
     },
     {
         id: "P005",
@@ -58,8 +62,10 @@ export const allPatients: PatientType[] =[
         lastVisit: "2023-04-30",
         nextAppointment: "2023-06-30",
         phone: "+1 (555) 567-8901",
-        email: "utsarg.l@example.com"
+        email: "utsarg.l@example.com",
+        userUniqueId: "UID005"
     }
+
 ]
 
 export const filterPatients = (
