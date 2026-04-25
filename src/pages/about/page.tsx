@@ -68,8 +68,8 @@ function About() {
                     </div>
                 </section>
             </main>
-            <Footer />
         </div>
+
     )
 }
 

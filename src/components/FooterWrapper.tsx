@@ -1,12 +1,11 @@
 import { useLocation } from "react-router-dom";
-import Navbar from "./Navbar";
+import Footer from "./Footer";
 
-function NavbarWrapper() {
+function FooterWrapper() {
   const location = useLocation();
-
   const pathname = location.pathname;
 
-  const hideNavbar =
+  const hideFooter =
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/user") ||
@@ -16,10 +15,9 @@ function NavbarWrapper() {
     pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/reset-password");
 
-  if (hideNavbar) return null;
+  if (hideFooter) return null;
 
-
-  return <Navbar />;
+  return <Footer />;
 }
 
-export default NavbarWrapper;
+export default FooterWrapper;

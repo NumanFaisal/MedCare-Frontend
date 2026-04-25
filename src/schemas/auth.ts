@@ -2,7 +2,8 @@ import * as z from "zod";
 
 // --- 1. Sign Up Schema ---
 export const signUpSchema = z.object({
-  role: z.enum(["USER", "MEDICAL", "DOCTOR"]),
+  role: z.enum(["USER", "MEDICAL", "DOCTOR", "ADMIN"]),
+
   firstName: z.string().min(2, { message: "First name must be at least 2 characters" }),
   lastName: z.string().min(2, { message: "Last name must be at least 2 characters" }),
   email: z.string().email({ message: "Invalid email address" }),
@@ -14,7 +15,9 @@ export const signUpSchema = z.object({
   licenseNumber: z.string().optional(),
   facilityName: z.string().optional(),
   address: z.string().optional(),
+  adminSecret: z.string().optional(),
 })
+
   .superRefine((data, ctx) => {
     // Doctor Logic
     if (data.role === "DOCTOR") {
@@ -51,7 +54,19 @@ export const signUpSchema = z.object({
         });
       }
     }
+
+    // Admin Logic
+    if (data.role === "ADMIN") {
+      if (!data.adminSecret) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Admin secret is required",
+          path: ["adminSecret"],
+        });
+      }
+    }
   });
+
 
 // Extract the Type automatically
 export type SignUpFormValues = z.infer<typeof signUpSchema>;

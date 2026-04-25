@@ -63,9 +63,12 @@ const Login: React.FC = () => {
             navigate("/doctor");
           } else if (role === "MEDICAL") {
             navigate("/medical");
+          } else if (role === "ADMIN") {
+            navigate("/admin/contacts");
           } else {
             navigate("/");
           }
+
         }, 500);
       }
     } catch (error: any) {

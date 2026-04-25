@@ -20,23 +20,34 @@ type DoctorType = {
   consultationFee: number;
 };
 
-const DEFAULT_AVATAR = "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png";
+const DEFAULT_AVATAR = "https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80&w=600&auto=format&fit=crop";
+
 
 const fetchDoctors = async (): Promise<DoctorType[]> => {
   const response = await api.get("/api/users/doctors");
-  return response.data.map((doc: any) => ({
-    id: doc.id.toString(),
-    name: `Dr. ${doc.user.firstName} ${doc.user.lastName}`,
-    specialty: doc.specialization,
-    experience: doc.yearsOfExperience,
-    location: doc.hospitalAffiliation || "Private Clinic",
-    rating: doc.averageRating || 0,
-    totalReviews: doc.totalReviews || 0,
-    image: doc.user?.profileImageDb || null,
-    hospital: doc.hospitalAffiliation || "Private Clinic",
-    consultationFee: doc.consultationFee,
-  }));
+  return response.data.map((doc: any) => {
+    const firstName = doc.user.firstName || "";
+    const lastName = doc.user.lastName || "";
+    // Avoid double "Dr." if first name already starts with it
+    const fullName = firstName.toLowerCase().startsWith('dr.') 
+      ? `${firstName} ${lastName}` 
+      : `Dr. ${firstName} ${lastName}`;
+
+    return {
+      id: doc.id.toString(),
+      name: fullName,
+      specialty: doc.specialization || "General Specialist",
+      experience: doc.yearsOfExperience || 0,
+      location: doc.hospitalAffiliation || "Private Clinic",
+      rating: doc.averageRating || 0,
+      totalReviews: doc.totalReviews || 0,
+      image: doc.user?.profileImageDb || null,
+      hospital: doc.hospitalAffiliation || "Private Clinic",
+      consultationFee: doc.consultationFee || 500,
+    };
+  });
 };
+
 
 function DoctorSearch() {
   const [currentIndex, setCurrentIndex] = useState(0);

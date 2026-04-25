@@ -39,19 +39,24 @@ export default function SignUp() {
       licenseNumber: "", // Shared field name, used by both Doctor and Medical
       facilityName: "",
       address: "",
+      adminSecret: "",
     },
+
   });
 
   const onTabChange = (value: string) => {
     setActiveTab(value);
-    form.setValue("role", value as "USER" | "MEDICAL" | "DOCTOR");
+    form.setValue("role", value as "USER" | "MEDICAL" | "DOCTOR" | "ADMIN");
+
     form.clearErrors();
     // Optional: Reset role-specific fields when switching tabs
     form.setValue("licenseNumber", "");
     form.setValue("specialization", "");
     form.setValue("facilityName", "");
     form.setValue("address", "");
+    form.setValue("adminSecret", "");
   };
+
 
   const onSubmit = async (data: SignUpFormValues) => {
     try {
@@ -66,7 +71,10 @@ export default function SignUp() {
         navigate("/doctor");
       } else if (response.data.user.role === "MEDICAL") {
         navigate("/medical");
+      } else if (response.data.user.role === "ADMIN") {
+        navigate("/admin/contacts");
       }
+
 
     } catch (error: any) {
       console.error("Registration error:", error);
@@ -80,8 +88,9 @@ export default function SignUp() {
         <CardContent >
           <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
 
-            <TabsList className="grid w-full grid-cols-3  bg-secondary/5 h-11">
-              {["USER", "MEDICAL", "DOCTOR"].map((role) => (
+            <TabsList className="grid w-full grid-cols-4 bg-secondary/5 h-11">
+              {["USER", "MEDICAL", "DOCTOR", "ADMIN"].map((role) => (
+
                 <TabsTrigger
                   key={role}
                   value={role}
@@ -247,6 +256,28 @@ export default function SignUp() {
                     />
                   </div>
                 )}
+                
+                {/* --- ADMIN SECTION --- */}
+                {activeTab === "ADMIN" && (
+                  <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300 p-4 bg-red-50/50 rounded-lg border border-red-100">
+                    <h3 className="text-sm font-semibold text-red-600">Admin Details</h3>
+                    <FormField
+                      control={form.control}
+                      name="adminSecret"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Admin Registration Secret</FormLabel>
+                          <FormControl>
+                            <Input type="password" placeholder="Enter secret key" {...field} className="rounded-lg border-gray-300 bg-white px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+
+
 
                 <FormField
                   control={form.control}

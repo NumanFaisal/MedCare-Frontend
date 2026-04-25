@@ -67,11 +67,12 @@ function Hero() {
                 </Link>
               </Button>
 
-              <Button
+               <Button
                 variant="outline"
-                onClick={() => navigate("/user/ai-health")}
+                onClick={() => navigate("/user/analysis-report")}
                 className="group bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white border-2 border-white/30 font-semibold py-6 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
               >
+
                 <Sparkles className="w-5 h-5" />
                 <span>Try AI Health Assistant</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

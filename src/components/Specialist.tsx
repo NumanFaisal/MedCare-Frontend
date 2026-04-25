@@ -55,7 +55,8 @@ export const Specialist: React.FC<SpecialistProps> = ({
         name: `Dr. ${specialist.user.firstName} ${specialist.user.lastName}`,
         image: specialist.user.profileImageDb,
         bio: specialist.professionalBio,
-        experience: `${specialist.yearsOfExperience}+`,
+        experience: specialist.yearsOfExperience ? `${specialist.yearsOfExperience}+` : '30+',
+
         socialLinks: {
             facebook: specialist.facebook || '#',
             twitter: specialist.twitter || '#',

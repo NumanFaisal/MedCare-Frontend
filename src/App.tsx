@@ -13,7 +13,8 @@ const Register = lazy(() => import('./pages/Auth/Register'))
 import DashboardLayout from './components/layouts/DashboardLayout'
 const About = lazy(() => import('./pages/about/page'))
 const ContactPage = lazy(() => import('./pages/contact/page'))
-import Features from './components/Features'
+const Features = lazy(() => import('./components/Features'))
+const ContactSubmissions = lazy(() => import('./pages/Admin/ContactSubmissions'))
 import ProtectedRoute from './components/ProtectedRoute'
 import CookieConsent from './components/Legal/CookieConsent'
 import BugReportModal from './components/Feedback/BugReportModal'
@@ -68,16 +69,32 @@ const AnalyticsTracker = () => {
   return null;
 };
 
+import NavbarWrapper from './components/NavbarWrapper'
+import FooterWrapper from './components/FooterWrapper'
+import Footer from './components/Footer'
+
 function App() {
 
   return (
     <BrowserRouter>
       <AnalyticsTracker />
       <Suspense fallback={<GlobalLoader />}>
+      <NavbarWrapper />
       <Routes>
+
         <Route path="/about" element={<About />} />
          <Route path="/features" element={<Features />} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route 
+          path="/admin/contacts" 
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN']}>
+              <ContactSubmissions />
+            </ProtectedRoute>
+          } 
+        />
+
+
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -161,8 +178,10 @@ function App() {
         />
 
       </Routes>
+      <FooterWrapper />
       </Suspense>
       <Toaster position="top-right" richColors />
+
       <CookieConsent />
       <BugReportModal />
     </BrowserRouter>

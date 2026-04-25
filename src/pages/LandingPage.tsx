@@ -12,8 +12,8 @@ import Navbar from "../components/Navbar";
 function LandingPage() {
   return (
     <div>
-      <Navbar />
       <Hero />
+
       <Features />
       <Specialist name={""} experience={""} image={""} bio={""} socialLinks={{
         facebook: "",
@@ -24,8 +24,8 @@ function LandingPage() {
       <RoleSection />
       <Testimonials />
       <CTA />
-      <Footer />
     </div>
+
   );
 }
 
